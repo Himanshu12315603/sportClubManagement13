@@ -1,26 +1,37 @@
-import { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { roleHome } from '../../data/navigation';
 
 /**
- * Guards a dashboard route.
- *
- * Demo convenience: opening a dashboard URL with no active session signs the
- * visitor in as that role so every dashboard is reachable in a walkthrough.
- * Replace `quickLogin` with a redirect to /login once real auth is wired up.
+ * Guards a dashboard route based on user authentication and permissions.
  */
 export default function ProtectedRoute({ role, children }) {
-  const { isAuthenticated, role: currentRole, quickLogin } = useApp();
+  const { isAuthenticated, role: currentRole } = useApp();
   const location = useLocation();
-  const wrongRole = isAuthenticated && role && currentRole !== role;
 
-  useEffect(() => {
-    if (!isAuthenticated) quickLogin(role);
-  }, [isAuthenticated, quickLogin, role]);
+  const isRoleAuthorized = (userRole, targetRole) => {
+    if (!targetRole) return true;
+    if (userRole === targetRole) return true;
+    if (targetRole === 'customer') {
+      return ['member', 'visitor', 'customer'].includes(userRole);
+    }
+    if (targetRole === 'manager') {
+      return ['manager', 'receptionist', 'coach', 'accountant', 'super_admin', 'owner'].includes(userRole);
+    }
+    if (targetRole === 'admin') {
+      return ['admin', 'super_admin', 'owner'].includes(userRole);
+    }
+    return false;
+  };
 
-  if (wrongRole) return <Navigate to={roleHome[currentRole] || '/app/dashboard'} replace />;
-  if (!isAuthenticated) return <Navigate to={location.pathname} replace />;
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (role && !isRoleAuthorized(currentRole, role)) {
+    const destination = roleHome[currentRole] || '/app/dashboard';
+    return <Navigate to={destination} replace />;
+  }
 
   return children;
 }

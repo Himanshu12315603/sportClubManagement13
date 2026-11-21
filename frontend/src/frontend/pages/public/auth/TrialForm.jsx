@@ -6,10 +6,12 @@ import { Field, FormRow, Input, Select, validateFields } from '../../../componen
 import { useApp } from '../../../context/AppContext';
 import { trialSports, trialTimeSlots } from '../../../data/trials';
 import { toISODate, addDays, formatDate } from '../../../utils/format';
+import api from '../../../services/api';
 
 /** Free-trial booking form with a success confirmation state. */
 export default function TrialForm() {
   const { toast, pushNotification } = useApp();
+  const [busy, setBusy] = useState(false);
   const [values, setValues] = useState({
     name: '',
     email: '',
@@ -23,7 +25,7 @@ export default function TrialForm() {
 
   const set = (k) => (e) => setValues((v) => ({ ...v, [k]: e.target.value }));
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
     const { valid, errors: errs } = validateFields(values, {
       name: { required: true },
@@ -37,10 +39,21 @@ export default function TrialForm() {
       return;
     }
     setErrors({});
-    const ref = `TR-${Math.floor(Math.random() * 900 + 100)}`;
-    setConfirmed({ ...values, ref });
-    pushNotification('trial_approved', `Trial request ${ref} received for ${values.sport} on ${formatDate(values.date)} at ${values.slot}.`, 'customer');
-    toast('Trial requested', `${values.sport} · ${values.slot} · ref ${ref}`, 'success');
+    setBusy(true);
+    try {
+      const res = await api.registerTrial(values);
+      const trial = res.data?.trial;
+      const ref = trial?._id ? `TR-${trial._id.slice(-6).toUpperCase()}` : `TR-${Math.floor(Math.random() * 900 + 100)}`;
+      setConfirmed({ ...values, ref });
+      pushNotification('trial_approved', `Trial request ${ref} received for ${values.sport} on ${formatDate(values.date)} at ${values.slot}.`, 'customer');
+      toast('Trial registered in database', `${values.sport} · ${values.slot} · ref ${ref}`, 'success');
+    } catch (err) {
+      toast('Trial requested (local)', err.message || 'Saved locally', 'info');
+      const ref = `TR-${Math.floor(Math.random() * 900 + 100)}`;
+      setConfirmed({ ...values, ref });
+    } finally {
+      setBusy(false);
+    }
   };
 
   if (confirmed) {

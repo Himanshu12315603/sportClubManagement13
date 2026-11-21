@@ -16,7 +16,7 @@ export default function LoginForm() {
 
   const set = (k) => (e) => setValues((v) => ({ ...v, [k]: e.target.value }));
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
     const { valid, errors: errs } = validateFields(values, {
       email: { required: true, email: true },
@@ -28,7 +28,7 @@ export default function LoginForm() {
     }
     setErrors({});
     setBusy(true);
-    const res = login(values.email, values.password);
+    const res = await login(values.email, values.password);
     setBusy(false);
     if (!res.ok) {
       setErrors({ password: res.error });
@@ -37,9 +37,15 @@ export default function LoginForm() {
     navigate(roleHome[res.account.role] || '/app/dashboard');
   };
 
-  const demo = (account) => {
-    quickLogin(account.role);
-    navigate(roleHome[account.role] || '/app/dashboard');
+  const demo = async (account) => {
+    setBusy(true);
+    const res = await login(account.email, account.password || 'clubbloom');
+    setBusy(false);
+    if (!res.ok) {
+      setErrors({ password: res.error });
+      return;
+    }
+    navigate(roleHome[res.account.role] || '/app/dashboard');
   };
 
   return (

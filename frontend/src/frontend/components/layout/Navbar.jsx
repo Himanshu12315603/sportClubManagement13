@@ -38,7 +38,7 @@ export default function Navbar() {
           {user ? (
             <>
               <Button variant="outline" size="sm" icon="LayoutDashboard" onClick={() => navigate(roleHome[role] || '/app/dashboard')}>
-                {role === 'customer' ? 'My Dashboard' : role === 'manager' ? 'Manager' : 'Admin'}
+                {['member', 'customer', 'visitor'].includes(role) ? 'My Dashboard' : ['manager', 'receptionist', 'coach', 'accountant'].includes(role) ? 'Manager' : 'Admin'}
               </Button>
               <Button variant="ghost" size="sm" icon="LogOut" onClick={() => { logout(); navigate('/'); }}>Sign out</Button>
             </>

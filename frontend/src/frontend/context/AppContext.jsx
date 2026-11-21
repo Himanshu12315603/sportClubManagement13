@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import api from '../services/api';
 import {
   demoAccounts,
   customerMembership,
@@ -75,6 +76,70 @@ export function AppProvider({ children }) {
 
   useEffect(() => {
     writeStore(AUTH_KEY, user);
+    if (user) {
+      setProfile((prev) => ({
+        ...prev,
+        id: user._id || user.id || prev.id,
+        name: user.name || prev.name,
+        email: user.email || prev.email,
+        phone: user.phone || prev.phone,
+        city: user.city || prev.city,
+      }));
+
+      // Fetch real membership from backend for member/customer
+      if (['member', 'visitor', 'customer'].includes(user.role)) {
+        api.getMyMembership()
+          .then((res) => {
+            if (res.data?.member) {
+              const m = res.data.member;
+              setMembership({
+                id: m.memberId || m._id,
+                userId: user._id || user.id,
+                type: m.tier || 'trial',
+                startDate: m.startDate ? toISODate(new Date(m.startDate)) : toISODate(new Date()),
+                expiryDate: m.endDate ? toISODate(new Date(m.endDate)) : toISODate(new Date()),
+                pricePaid: m.paidAmount || 0,
+                paymentMethod: 'UPI',
+                status: m.status === 'active' ? 'active' : m.status,
+                familyMembers: 0,
+              });
+            }
+          })
+          .catch(() => {});
+      }
+    }
+  }, [user]);
+
+  // Fetch real users from backend when logged in as manager/admin
+  useEffect(() => {
+    const fetchUsers = async () => {
+      if (user && (user.role === 'manager' || user.role === 'super_admin' || user.role === 'owner' || user.role === 'receptionist')) {
+        try {
+          const response = await api.getAllUsers();
+          const users = response.data.users;
+          // Transform backend users to frontend member format
+          const transformedMembers = users.map((u) => ({
+            id: u._id,
+            name: u.name,
+            email: u.email,
+            phone: u.phone || '—',
+            plan: 'trial', // Default plan for registered users
+            age: 25,
+            city: '—',
+            joined: u.createdAt,
+            expiryDate: u.createdAt, // Will be updated when membership is created
+            sessionsThisMonth: 0,
+            totalSpent: 0,
+            lastVisit: u.lastLogin || u.createdAt,
+            suspended: !u.isActive,
+          }));
+          setMembers(transformedMembers);
+        } catch (error) {
+          console.error('Failed to fetch users:', error);
+        }
+      }
+    };
+    fetchUsers();
   }, [user]);
 
   /* ------------------------------- toasts ------------------------------- */
@@ -118,13 +183,16 @@ export function AppProvider({ children }) {
   /* --------------------------------- auth -------------------------------- */
 
   const login = useCallback(
-    (email, password) => {
-      const account = demoAccounts.find((a) => a.email.toLowerCase() === String(email).trim().toLowerCase());
-      if (!account) return { ok: false, error: 'No ClubBloom account found for that email.' };
-      if (account.password !== password) return { ok: false, error: 'Incorrect password. Demo password is "clubbloom".' };
-      setUser(account);
-      toast(`Welcome back, ${account.name.split(' ')[0]}`, `Signed in as ${account.title}.`, 'success');
-      return { ok: true, account };
+    async (email, password) => {
+      try {
+        const response = await api.login(email, password);
+        const account = response.data.user;
+        setUser(account);
+        toast(`Welcome back, ${account.name.split(' ')[0]}`, `Signed in successfully.`, 'success');
+        return { ok: true, account };
+      } catch (error) {
+        return { ok: false, error: error.message || 'Login failed. Please check your credentials.' };
+      }
     },
     [toast]
   );
@@ -141,27 +209,27 @@ export function AppProvider({ children }) {
   );
 
   const register = useCallback(
-    (payload) => {
-      const account = {
-        id: `U-${Date.now()}`,
-        role: 'customer',
-        name: payload.name,
-        email: payload.email,
-        phone: payload.phone,
-        city: payload.city || '—',
-        memberSince: toISODate(new Date()),
-        avatarSeed: payload.name.slice(0, 2).toUpperCase(),
-        title: 'New Member',
-      };
-      setUser(account);
-      toast('Account created', 'Your ClubBloom journey has started — a welcome seed is in your garden.', 'success');
-      pushNotification('garden_milestone', 'A seed was planted in your garden. Book a session to help it grow!', 'customer');
-      return { ok: true, account };
+    async (payload) => {
+      try {
+        const response = await api.register(payload.name, payload.email, payload.phone, payload.password);
+        const account = response.data.user;
+        setUser(account);
+        toast('Account created', 'Your ClubBloom journey has started — a welcome seed is in your garden.', 'success');
+        pushNotification('garden_milestone', 'A seed was planted in your garden. Book a session to help it grow!', 'customer');
+        return { ok: true, account };
+      } catch (error) {
+        return { ok: false, error: error.message || 'Registration failed. Please try again.' };
+      }
     },
     [toast, pushNotification]
   );
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      await api.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
     setUser(null);
     setCart({ items: [], channel: 'shop' });
   }, []);

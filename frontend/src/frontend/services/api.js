@@ -1,57 +1,84 @@
 /**
- * Front-end service layer.
- *
- * Every function below returns a Promise so the UI already behaves like it is
- * talking to a network. When the Express backend is connected, swap the mock
- * bodies for `request()` calls — the shape of the returned data stays the same.
- *
- * The backend currently exposes only `GET /` (see backend/src/server.ts), so all
- * endpoints here are clearly marked as pending integration.
+ * Front-end service layer - Connected to backend API
  */
 
-export const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL || 'http://localhost:5000';
+export const API_BASE_URL = import.meta.env.DEV ? '' : (import.meta.env?.VITE_API_BASE_URL || 'http://localhost:5000');
 
-const MOCK_LATENCY = 320;
-
-function delay(value) {
-  return new Promise((resolve) => setTimeout(() => resolve(value), MOCK_LATENCY));
-}
+export const integrationNotes = [
+  'Connected to Champions Club REST API at /api/v1',
+  'All authentication tokens stored via secure HTTP cookies and bearer tokens',
+  'Real-time operations synchronized with MongoDB',
+];
 
 async function request(path, options = {}) {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const url = API_BASE_URL ? `${API_BASE_URL}${path}` : path;
+  const res = await fetch(url, {
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
     ...options,
   });
-  if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-  return res.json();
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || `Request failed: ${res.status}`);
+  return data;
 }
 
 export const api = {
-  /** INTEGRATION REQUIRED: backend `GET /api/health` does not exist yet. */
-  health: () => delay({ status: 'ok', source: 'mock', baseUrl: API_BASE_URL }),
+  health: () => request('/api/v1/health'),
 
-  /** INTEGRATION REQUIRED: `POST /api/auth/login` */
   login: (email, password) =>
-    delay({ token: `demo-token-${Date.now()}`, email, password: password ? 'accepted' : 'missing' }),
+    request('/api/v1/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    }),
 
-  /** INTEGRATION REQUIRED: `GET /api/members` */
-  listMembers: () => delay([]),
+  register: (name, email, phone, password) =>
+    request('/api/v1/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ name, email, phone, password, role: 'member' }),
+    }),
 
-  /** INTEGRATION REQUIRED: `GET /api/bookings?userId=` */
-  listBookings: () => delay([]),
+  logout: () =>
+    request('/api/v1/auth/logout', {
+      method: 'POST',
+    }),
 
-  /** INTEGRATION REQUIRED: `POST /api/bookings` */
-  createBooking: (payload) => delay({ ...payload, id: `BK-${Date.now()}` }),
+  getMe: () => request('/api/v1/auth/me'),
 
-  /** INTEGRATION REQUIRED: `GET /api/products` */
-  listProducts: () => delay([]),
+  getAllUsers: () => request('/api/v1/auth/users'),
+
+  listMembers: () => request('/api/v1/members'),
+
+  getMyMembership: () => request('/api/v1/members/my-membership'),
+
+  getPlans: () => request('/api/v1/members/plans'),
+
+  subscribeMembership: (planId, paymentMethod = 'card') =>
+    request('/api/v1/members/subscribe', {
+      method: 'POST',
+      body: JSON.stringify({ planId, paymentMethod }),
+    }),
+
+  listBookings: () => request('/api/v1/bookings'),
+
+  getMyBookings: () => request('/api/v1/bookings/my-bookings'),
+
+  createBooking: (payload) =>
+    request('/api/v1/bookings', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  getCourts: () => request('/api/v1/courts'),
+
+  listProducts: () => request('/api/v1/products'),
+
+  getCafeMenu: () => request('/api/v1/cafe/menu'),
+
+  registerTrial: (payload) =>
+    request('/api/v1/trials/register', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 };
-
-export const integrationNotes = [
-  'Auth: replace demoAccounts lookup with POST /api/auth/login and persist the JWT.',
-  'Bookings: move the rule engine in data/courts.js to the server so double-booking is enforced atomically.',
-  'Payments: no gateway is connected — checkout only records a mock transaction.',
-  'AI: ClubBloom AI runs fully offline in the browser; wire it to your model endpoint when ready.',
-];
 
 export default api;

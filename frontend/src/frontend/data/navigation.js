@@ -91,6 +91,13 @@ export const publicNav = [
 
 export const roleHome = {
   customer: '/app/dashboard',
+  member: '/app/dashboard',
+  visitor: '/app/dashboard',
   manager: '/manager/overview',
+  receptionist: '/manager/overview',
+  coach: '/manager/overview',
+  accountant: '/manager/overview',
   admin: '/admin/overview',
+  super_admin: '/admin/overview',
+  owner: '/admin/overview',
 };
