@@ -45,7 +45,7 @@ const memberSchema = new Schema<MemberDocument>(
     },
     tier: {
       type: String,
-      enum: ['gold', 'silver', 'junior'],
+      enum: ['gold', 'silver', 'junior', 'trial'],
       required: true,
     },
     status: {
@@ -58,7 +58,7 @@ const memberSchema = new Schema<MemberDocument>(
     amountPaid: { type: Number, required: true, min: 0 },
     paymentMethod: {
       type: String,
-      enum: ['cash', 'card', 'upi', 'online'],
+      enum: ['cash', 'card', 'upi', 'online', 'free_trial'],
       required: true,
     },
     paymentReference: String,
@@ -78,7 +78,6 @@ const memberSchema = new Schema<MemberDocument>(
   }
 );
 
-// Indexes
 memberSchema.index({ status: 1 });
 memberSchema.index({ endDate: 1 });
 memberSchema.index({ tier: 1 });

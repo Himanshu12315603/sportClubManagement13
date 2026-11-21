@@ -10,8 +10,8 @@ router.post('/categories', requireAuth, requireRole('super_admin', 'owner', 'man
 
 // Products (public read)
 router.get('/products', productController.getProducts);
-router.get('/products/:id', productController.getProductById);
 router.post('/products', requireAuth, requireRole('super_admin', 'owner', 'manager', 'shop_staff'), productController.createProduct);
+router.get('/products/:id', productController.getProductById);
 router.patch('/products/:id', requireAuth, requireRole('super_admin', 'owner', 'manager', 'shop_staff'), productController.updateProduct);
 
 // Inventory

@@ -15,6 +15,7 @@ router.post('/tables', requireAuth, requireRole('super_admin', 'owner', 'manager
 router.patch('/tables/:id/status', requireAuth, requireRole('super_admin', 'owner', 'manager', 'bar_staff'), cafeController.updateTableStatus);
 
 // Orders
+router.get('/orders/my', requireAuth, cafeController.getMyOrders);
 router.post('/orders', requireAuth, cafeController.createOrder);
 router.get('/orders', requireAuth, requireRole('super_admin', 'owner', 'manager', 'bar_staff', 'accountant'), cafeController.getOrders);
 router.get('/orders/:id', requireAuth, cafeController.getOrderById);

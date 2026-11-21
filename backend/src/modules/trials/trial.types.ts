@@ -4,6 +4,7 @@ export type TrialStatus = 'registered' | 'confirmed' | 'attended' | 'cancelled' 
 export type SportType = 'tennis' | 'cricket';
 
 export interface ITrial {
+  userId?: mongoose.Types.ObjectId;
   name: string;
   email: string;
   phone: string;
@@ -20,6 +21,7 @@ export interface ITrial {
 export interface TrialDocument extends ITrial, Document {}
 
 export interface RegisterTrialInput {
+  userId?: string;
   name: string;
   email: string;
   phone: string;

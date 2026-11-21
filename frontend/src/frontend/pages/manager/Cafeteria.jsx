@@ -9,7 +9,7 @@ import { useApp } from '../../context/AppContext';
 import { cafeMenu, cafeTables, cafeOrderStatusFlow } from '../../data/cafeMenu';
 import { formatCurrency, titleCase } from '../../utils/format';
 
-const statusTone = { received: 'warning', preparing: 'info', ready: 'active', served: 'neutral' };
+const statusTone = { received: 'warning', preparing: 'info', ready: 'active', served: 'neutral', completed: 'active' };
 
 export default function ManagerCafeteria() {
   const { kitchen, advanceKitchenOrder, toast } = useApp();
@@ -79,14 +79,14 @@ export default function ManagerCafeteria() {
             </div>
           }
         />
-        <div className="cb-grid cols-4">
+        <div className="cb-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 14 }}>
           {cafeOrderStatusFlow.map((status) => (
             <div key={status} className="cb-stack" style={{ gap: 12 }}>
               <div className="cb-row between">
-                <span className="small semibold">{titleCase(status)}</span>
-                <Badge tone={statusTone[status]}>{byStatus[status].length}</Badge>
+                <span className="small semibold">{titleCase(status === 'received' ? 'New orders' : status)}</span>
+                <Badge tone={statusTone[status]}>{byStatus[status]?.length || 0}</Badge>
               </div>
-              {byStatus[status].length === 0 ? (
+              {!byStatus[status] || byStatus[status].length === 0 ? (
                 <div className="cb-card glass" style={{ padding: 14 }}>
                   <span className="tiny dim">No orders</span>
                 </div>
@@ -104,13 +104,13 @@ export default function ManagerCafeteria() {
                     </div>
                     <Button
                       size="sm"
-                      variant="outline"
+                      variant={status === 'ready' ? 'primary' : 'outline'}
                       icon="ArrowRight"
                       block
-                      disabled={status === 'served'}
+                      disabled={status === 'completed'}
                       onClick={() => advanceKitchenOrder(o.id)}
                     >
-                      {status === 'served' ? 'Served' : 'Advance'}
+                      {status === 'completed' ? 'Done' : status === 'served' ? 'Complete' : 'Advance'}
                     </Button>
                   </div>
                 ))

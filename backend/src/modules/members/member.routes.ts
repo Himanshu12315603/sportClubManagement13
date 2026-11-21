@@ -4,18 +4,22 @@ import * as memberController from './member.controller';
 
 const router = Router();
 
-// All member routes require authentication
+// Public plan browsing
+router.get('/plans', memberController.getPlans);
+
+// Protected routes
 router.use(requireAuth);
 
-// ---- Membership Plans ----
-router.get('/plans', memberController.getPlans);  // Public read (even members can see plans)
+// Plan administration
 router.post('/plans', requireRole('super_admin', 'owner', 'manager'), memberController.createPlan);
 router.patch('/plans/:id', requireRole('super_admin', 'owner', 'manager'), memberController.updatePlan);
 router.delete('/plans/:id', requireRole('super_admin', 'owner'), memberController.deletePlan);
 
-// ---- Members ----
-router.get('/my-membership', memberController.getMyMembership);  // Any logged-in user
+// Member Self-Service (any logged-in member/visitor can view their own membership or subscribe)
+router.get('/my-membership', memberController.getMyMembership);
+router.post('/subscribe', memberController.subscribeMembership);
 
+// Staff / Admin Management
 router.get('/', requireRole('super_admin', 'owner', 'manager', 'receptionist', 'accountant'), memberController.getMembers);
 router.post('/', requireRole('super_admin', 'owner', 'manager', 'receptionist'), memberController.createMember);
 router.get('/:id', requireRole('super_admin', 'owner', 'manager', 'receptionist', 'accountant'), memberController.getMemberById);

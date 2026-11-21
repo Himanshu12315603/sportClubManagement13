@@ -6,8 +6,19 @@ import * as trialService from './trial.service';
 import { TrialStatus } from './trial.types';
 
 export const register = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
-  const trial = await trialService.registerTrial(req.body);
+  const payload = {
+    ...req.body,
+    userId: req.user ? req.user._id.toString() : undefined,
+  };
+  const trial = await trialService.registerTrial(payload);
   sendCreated(res, { trial }, 'Trial registration successful. Our team will contact you!');
+});
+
+export const getMyTrials = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+  const userId = req.user!._id.toString();
+  const email = req.user?.email;
+  const trials = await trialService.getMyTrials(userId, email);
+  sendSuccess(res, { trials }, 'Your trial registrations fetched');
 });
 
 export const getTrials = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {

@@ -4,9 +4,9 @@ export const createBookingSchema = z.object({
   body: z.object({
     courtId: z.string().min(1, 'Court ID is required'),
     memberUserId: z.string().optional(),   // For staff-assisted bookings
-    startTime: z.string().datetime({ message: 'Invalid start time' }),
-    bookingType: z.enum(['member', 'walk_in', 'social_play']),
-    paymentMethod: z.enum(['cash', 'card', 'upi', 'online']).optional(),
+    startTime: z.string().min(1, 'Start time is required'),
+    bookingType: z.enum(['member', 'walk_in', 'social_play']).optional().default('member'),
+    paymentMethod: z.enum(['cash', 'card', 'upi', 'online', 'razorpay']).optional().default('razorpay'),
     participants: z
       .array(
         z.object({

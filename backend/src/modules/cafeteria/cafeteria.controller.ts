@@ -37,8 +37,22 @@ export const updateTableStatus = asyncHandler(async (req: Request, res: Response
 });
 
 export const createOrder = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
-  const order = await cafeService.createCafeOrder({ ...req.body, createdById: req.user!._id.toString() });
+  const customerId = req.body.customerId || req.user?._id.toString();
+  const order = await cafeService.createCafeOrder({
+    ...req.body,
+    customerId,
+    createdById: req.user!._id.toString(),
+  });
   sendCreated(res, { order }, 'Order created');
+});
+
+export const getMyOrders = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+  const result = await cafeService.getCafeOrders({
+    customerId: req.user!._id.toString(),
+    page: req.query.page ? parseInt(req.query.page as string, 10) : 1,
+    limit: req.query.limit ? parseInt(req.query.limit as string, 10) : 20,
+  });
+  sendSuccess(res, result, 'Your cafe orders fetched');
 });
 
 export const getOrders = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {

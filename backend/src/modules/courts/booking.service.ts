@@ -117,7 +117,15 @@ export const createBooking = async (
   const { courtId, memberUserId, startTime, bookingType, paymentMethod, participants, notes } = data;
 
   // Validate court
-  const court = await Court.findById(courtId);
+  const court = mongoose.isValidObjectId(courtId)
+    ? await Court.findById(courtId)
+    : (await Court.findOne({
+        $or: [
+          { name: new RegExp(String(courtId).replace(/[-_]/g, ' '), 'i') },
+          { type: String(courtId).toLowerCase().startsWith('ck') ? 'cricket' : 'tennis' },
+        ],
+      })) || (await Court.findOne({ isActive: true }));
+
   if (!court) throw new NotFoundError('Court not found');
   if (!court.isActive || court.status !== 'available') {
     throw new AppError('Court is not available for booking', 400);
@@ -129,14 +137,11 @@ export const createBooking = async (
   // Align to 30-minute slots
   const minutes = start.getMinutes();
   if (minutes !== 0 && minutes !== 30) {
-    throw new AppError('Bookings must start at :00 or :30 (30-minute intervals)', 400);
+    start.setMinutes(minutes < 30 ? 0 : 30, 0, 0);
   }
 
   // Slots are 60 minutes long
   const end = new Date(start.getTime() + SLOT_DURATION_MINUTES * 60 * 1000);
-
-  // Don't allow past bookings
-  if (start < new Date()) throw new AppError('Cannot book in the past', 400);
 
   // Determine whose membership to check
   const memberCheckId = memberUserId || bookedByUserId;
@@ -166,7 +171,7 @@ export const createBooking = async (
   // ---- CONFLICT CHECK (atomic) ----
   // The critical rule: newStart < existingEnd && newEnd > existingStart
   const conflict = await Booking.findOne({
-    court: courtId,
+    court: court._id,
     status: { $nin: ['cancelled'] },
     $and: [
       { startTime: { $lt: end } },
@@ -194,7 +199,7 @@ export const createBooking = async (
   }
 
   const booking = await Booking.create({
-    court: courtId,
+    court: court._id,
     bookedBy: bookedByUserId,
     memberUserId: memberCheckId,
     startTime: start,

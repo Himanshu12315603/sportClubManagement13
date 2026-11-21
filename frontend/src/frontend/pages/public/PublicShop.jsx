@@ -98,8 +98,21 @@ export default function PublicShop() {
       ) : (
         <div className="cb-grid cols-4">
           {list.map((p) => (
-            <Card key={p.id} glass glow style={{ padding: 14, display: 'flex', flexDirection: 'column' }}>
-              <div className="product-thumb" style={{ marginBottom: 12 }}>
+            <div
+              key={p.id}
+              className="cb-card"
+              style={{
+                padding: 16,
+                display: 'flex',
+                flexDirection: 'column',
+                background: '#ffffff',
+                border: '1.5px solid #e2e8f0',
+                borderRadius: 16,
+                boxShadow: '0 4px 12px -2px rgba(23, 43, 77, 0.05)',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <div className="product-thumb" style={{ marginBottom: 14, borderRadius: 12, height: 180, background: '#f8fafc' }}>
                 <ProductImage product={p} />
                 {p.mrp > p.price ? (
                   <span style={{ position: 'absolute', top: 10, left: 10 }}>
@@ -108,20 +121,20 @@ export default function PublicShop() {
                 ) : null}
               </div>
 
-              <div className="tiny dim">{p.brand} · {p.sport}</div>
-              <div className="small semibold" style={{ margin: '4px 0 8px', lineHeight: 1.3, minHeight: 36 }}>{p.name}</div>
+              <div className="tiny dim text-uppercase semibold" style={{ letterSpacing: 0.5 }}>{p.brand} · {p.sport}</div>
+              <div className="small semibold" style={{ margin: '4px 0 8px', lineHeight: 1.35, minHeight: 38, color: '#172b4d', fontSize: '0.96rem' }}>{p.name}</div>
 
               <div className="cb-row" style={{ gap: 8, alignItems: 'baseline' }}>
-                <span className="semibold">{formatCurrency(p.price)}</span>
+                <span className="semibold" style={{ fontSize: '1.1rem', color: '#172b4d' }}>{formatCurrency(p.price)}</span>
                 {p.mrp > p.price ? <span className="tiny dim" style={{ textDecoration: 'line-through' }}>{formatCurrency(p.mrp)}</span> : null}
               </div>
-              <div className="tiny" style={{ color: '#4ade80', marginTop: 4 }}>
+              <div className="tiny semibold" style={{ color: '#16a085', marginTop: 4 }}>
                 Members save {memberPct}% → {formatCurrency(Math.round(p.price * (1 - memberPct / 100)))}
               </div>
 
-              <div className="cb-row between tiny dim" style={{ marginTop: 10 }}>
-                <span className="cb-row" style={{ gap: 4, color: '#fbbf24' }}><Icon name="Star" size={12} /> {p.rating}</span>
-                <span>{p.stock > 0 ? `${p.stock} in stock` : 'Out of stock'}</span>
+              <div className="cb-row between tiny dim" style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid #f1f5f9' }}>
+                <span className="cb-row" style={{ gap: 4, color: '#f59e0b', fontWeight: 600 }}><Icon name="Star" size={13} /> {p.rating}</span>
+                <span style={{ fontWeight: 500 }}>{p.stock > 0 ? `${p.stock} in stock` : 'Out of stock'}</span>
               </div>
 
               <Button
@@ -131,11 +144,16 @@ export default function PublicShop() {
                 icon="Lock"
                 as={Link}
                 to="/login"
-                style={{ marginTop: 12 }}
+                style={{
+                  marginTop: 14,
+                  borderColor: '#16a085',
+                  color: '#16a085',
+                  fontWeight: 600,
+                }}
               >
                 Sign in to buy
               </Button>
-            </Card>
+            </div>
           ))}
         </div>
       )}

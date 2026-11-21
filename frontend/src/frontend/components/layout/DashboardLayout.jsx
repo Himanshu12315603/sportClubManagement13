@@ -1,15 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import Icon from '../ui/Icon';
 import { Avatar, IconButton } from '../ui/primitives';
 import Sidebar from './Sidebar';
 import AdminSidebar from './AdminSidebar';
-import { customerNav, managerNav, adminNav, roleHome } from '../../data/navigation';
+import { customerNav, managerNav, adminNav, staffNav, roleHome } from '../../data/navigation';
 import { useApp } from '../../context/AppContext';
 import { notificationKinds } from '../../data/notifications';
 
-const navByVariant = { customer: customerNav, manager: managerNav, admin: adminNav };
+const navByVariant = { customer: customerNav, manager: managerNav, admin: adminNav, staff: staffNav };
 const toneToIcon = { success: 'CheckCircle2', warning: 'AlertTriangle', danger: 'AlertTriangle', info: 'Info' };
 
 function useTitle(variant, pathname) {
@@ -32,14 +32,32 @@ export default function DashboardLayout({ variant = 'customer' }) {
   const { user, logout, notifications, markNotificationRead, markAllNotificationsRead, quickLogin } = useApp();
   const title = useTitle(variant, pathname);
 
+  // Close sidebar on route change
+  useEffect(() => {
+    setSidebarOpen(false);
+    setNotifOpen(false);
+    setMenuOpen(false);
+  }, [pathname]);
+
+  // Lock body scroll on mobile when sidebar is open
+  useEffect(() => {
+    if (sidebarOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [sidebarOpen]);
+
   const inbox = notifications.filter((n) => (n.audience || 'customer') === variant);
   const unread = inbox.filter((n) => !n.read).length;
 
-  const sessions = [
-    { role: 'customer', label: 'Member area', icon: 'Sprout' },
-    { role: 'manager', label: 'Manager console', icon: 'Briefcase' },
-    { role: 'admin', label: 'Administration', icon: 'ShieldCheck' },
-  ];
+  const sessions = useMemo(() => {
+    // Switch role removed from profile dropdown per user specification
+    return [];
+  }, []);
 
   return (
     <div className="cb-shell">
@@ -52,12 +70,19 @@ export default function DashboardLayout({ variant = 'customer' }) {
 
       <div className="cb-main">
         <header className="cb-topbar">
-          <button className="btn btn-ghost btn-icon cb-burger" onClick={() => setSidebarOpen((o) => !o)} aria-label="Toggle sidebar" style={{ display: 'inline-flex' }}>
-            <Icon name="Menu" size={18} />
+          <button
+            className="btn btn-ghost btn-icon cb-burger"
+            onClick={() => setSidebarOpen((o) => !o)}
+            aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+            style={{ display: 'inline-flex' }}
+          >
+            <Icon name={sidebarOpen ? "X" : "Menu"} size={18} />
           </button>
 
           <div className="cb-row" style={{ gap: 10 }}>
-            <span className="stat-icon" style={{ width: 34, height: 34, borderRadius: 10 }}><Icon name={title.icon} size={16} /></span>
+            <span className="stat-icon" style={{ width: 36, height: 36, borderRadius: 10 }}>
+              <Icon name={title.icon} size={16} />
+            </span>
             <div>
               <div className="semibold" style={{ lineHeight: 1.15 }}>{title.label}</div>
               <div className="tiny dim">{title.group || 'ClubBloom'}</div>
@@ -67,11 +92,20 @@ export default function DashboardLayout({ variant = 'customer' }) {
           <div className="spacer" />
 
           <div className="cb-row" style={{ gap: 8, position: 'relative' }}>
-            <IconButton icon="Bell" label="Notifications" variant="ghost" onClick={() => { setNotifOpen((o) => !o); setMenuOpen(false); }} />
+            <IconButton
+              icon="Bell"
+              label="Notifications"
+              variant="ghost"
+              onClick={() => { setNotifOpen((o) => !o); setMenuOpen(false); }}
+            />
             {unread ? <span className="notif-dot">{unread}</span> : null}
 
             <div style={{ position: 'relative' }}>
-              <button className="cb-row" onClick={() => { setMenuOpen((o) => !o); setNotifOpen(false); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', gap: 10 }}>
+              <button
+                className="cb-row"
+                onClick={() => { setMenuOpen((o) => !o); setNotifOpen(false); }}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', gap: 10 }}
+              >
                 <Avatar name={user?.name} seed={user?.avatarSeed} />
                 <div style={{ textAlign: 'left', lineHeight: 1.15 }} className="hide-sm">
                   <div className="semibold small">{user?.name || 'Guest'}</div>
@@ -89,34 +123,74 @@ export default function DashboardLayout({ variant = 'customer' }) {
                     className="cb-card"
                     style={{ position: 'absolute', right: 0, top: 50, width: 250, zIndex: 1300, padding: 12 }}
                   >
-                    <div className="tiny dim" style={{ padding: '4px 8px 8px' }}>Switch demo role</div>
-                    {sessions.map((s) => (
-                      <button
-                        key={s.role}
-                        className="cb-side-link"
-                        style={{ width: '100%', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
-                        onClick={() => { quickLogin(s.role); setMenuOpen(false); navigate(roleHome[s.role]); }}
-                      >
-                        <Icon name={s.icon} size={16} /> {s.label}
-                        {user?.role === s.role ? <span className="tag" style={{ background: 'rgba(0,163,255,0.2)', color: '#7dd3fc' }}>current</span> : null}
+                    <div style={{ padding: '4px 8px 10px', borderBottom: '1px solid var(--border)' }}>
+                      <div className="semibold small">{user?.name || 'Guest'}</div>
+                      <div className="tiny dim">{user?.email || ''}</div>
+                      <span className="badge badge-info" style={{ marginTop: 6, fontSize: '0.72rem' }}>
+                        {user?.title || user?.role}
+                      </span>
+                    </div>
+
+                    {sessions.length > 0 ? (
+                      <>
+                        <div className="tiny dim" style={{ padding: '8px 8px 4px' }}>Switch role</div>
+                        {sessions.map((s) => (
+                          <button
+                            key={s.role}
+                            className="cb-side-link"
+                            style={{ width: '100%', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
+                            onClick={() => { quickLogin(s.role); setMenuOpen(false); navigate(roleHome[s.role]); }}
+                          >
+                            <Icon name={s.icon} size={16} /> {s.label}
+                            {user?.role === s.role ? <span className="tag" style={{ background: 'rgba(0,163,255,0.2)', color: '#7dd3fc' }}>current</span> : null}
+                          </button>
+                        ))}
+                        <hr className="cb-hairline" style={{ margin: '8px 0' }} />
+                      </>
+                    ) : null}
+
+                    <div style={{ marginTop: 6 }}>
+                      {variant === 'staff' ? (
+                        <>
+                          <Link className="cb-side-link" to="/staff/bookings" onClick={() => setMenuOpen(false)}>
+                            <Icon name="CalendarDays" size={16} /> Court Bookings
+                          </Link>
+                          <Link className="cb-side-link" to="/staff/courts" onClick={() => setMenuOpen(false)}>
+                            <Icon name="Map" size={16} /> Court Status
+                          </Link>
+                        </>
+                      ) : variant === 'manager' ? (
+                        <>
+                          <Link className="cb-side-link" to="/manager/ai" onClick={() => setMenuOpen(false)}>
+                            <Icon name="Sparkles" size={16} /> ClubBloom AI
+                          </Link>
+                          <Link className="cb-side-link" to="/manager/finance" onClick={() => setMenuOpen(false)}>
+                            <Icon name="Wallet" size={16} /> Finance
+                          </Link>
+                        </>
+                      ) : variant === 'admin' ? (
+                        <>
+                          <Link className="cb-side-link" to="/admin/settings" onClick={() => setMenuOpen(false)}>
+                            <Icon name="Settings" size={16} /> System settings
+                          </Link>
+                          <Link className="cb-side-link" to="/admin/reports" onClick={() => setMenuOpen(false)}>
+                            <Icon name="FileBarChart" size={16} /> Financial Reports
+                          </Link>
+                        </>
+                      ) : (
+                        <>
+                          <Link className="cb-side-link" to="/app/ai" onClick={() => setMenuOpen(false)}>
+                            <Icon name="Sparkles" size={16} /> ClubBloom AI
+                          </Link>
+                          <Link className="cb-side-link" to="/app/profile" onClick={() => setMenuOpen(false)}>
+                            <Icon name="User" size={16} /> My profile
+                          </Link>
+                        </>
+                      )}
+                      <button className="cb-side-link" style={{ width: '100%', background: 'transparent', cursor: 'pointer', textAlign: 'left', color: 'var(--danger)' }} onClick={() => { logout(); navigate('/login'); }}>
+                        <Icon name="LogOut" size={16} /> Sign out
                       </button>
-                    ))}
-                    <hr className="cb-hairline" style={{ margin: '10px 0' }} />
-                    {variant !== 'admin' ? (
-                      <Link className="cb-side-link" to={variant === 'manager' ? '/manager/ai' : '/app/ai'} onClick={() => setMenuOpen(false)}>
-                        <Icon name="Sparkles" size={16} /> ClubBloom AI
-                      </Link>
-                    ) : (
-                      <Link className="cb-side-link" to="/admin/settings" onClick={() => setMenuOpen(false)}>
-                        <Icon name="Settings" size={16} /> System settings
-                      </Link>
-                    )}
-                    <Link className="cb-side-link" to={variant === 'manager' ? '/manager/finance' : variant === 'admin' ? '/admin/reports' : '/app/profile'} onClick={() => setMenuOpen(false)}>
-                      <Icon name={variant === 'customer' ? 'User' : 'Wallet'} size={16} /> {variant === 'customer' ? 'My profile' : 'Reports'}
-                    </Link>
-                    <button className="cb-side-link" style={{ width: '100%', background: 'transparent', cursor: 'pointer', textAlign: 'left' }} onClick={() => { logout(); navigate('/'); }}>
-                      <Icon name="LogOut" size={16} /> Sign out
-                    </button>
+                    </div>
                   </motion.div>
                 ) : null}
               </AnimatePresence>

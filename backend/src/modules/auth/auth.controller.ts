@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess, sendCreated } from '../../utils/apiResponse';
 import * as authService from './auth.service';
+import { logActivity } from '../activity/activity.service';
 import {
   registerSchema,
   loginSchema,
@@ -28,15 +29,25 @@ export const register = asyncHandler(async (req: Request, res: Response, _next: 
 
 export const login = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
   const validated = loginSchema.parse({ body: req.body });
-  const { user, accessToken, refreshToken } = await authService.loginUser(validated.body);
+  const { user, accessToken, refreshToken, member } = await authService.loginUser(validated.body);
 
   res.cookie('accessToken', accessToken, COOKIE_OPTIONS);
   res.cookie('refreshToken', refreshToken, { ...COOKIE_OPTIONS, maxAge: 30 * 24 * 60 * 60 * 1000 });
 
-  sendSuccess(res, { user, accessToken }, 'Login successful');
+  sendSuccess(res, { user, member, accessToken }, 'Login successful');
 });
 
-export const logout = asyncHandler(async (_req: Request, res: Response, _next: NextFunction) => {
+export const logout = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+  // Log logout activity
+  if (req.user) {
+    await logActivity({
+      userId: req.user._id.toString(),
+      userName: req.user.name,
+      userEmail: req.user.email,
+      type: 'logout',
+      description: 'User logged out',
+    });
+  }
   res.clearCookie('accessToken');
   res.clearCookie('refreshToken');
   sendSuccess(res, null, 'Logged out successfully');
@@ -64,6 +75,16 @@ export const resetPassword = asyncHandler(async (req: Request, res: Response, _n
 export const changePassword = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
   const validated = changePasswordSchema.parse({ body: req.body });
   await authService.changePassword(req.user!._id.toString(), validated.body);
+
+  // Log password change activity
+  await logActivity({
+    userId: req.user!._id.toString(),
+    userName: req.user.name,
+    userEmail: req.user.email,
+    type: 'password_changed',
+    description: 'User changed their password',
+  });
+
   sendSuccess(res, null, 'Password changed successfully');
 });
 
@@ -74,5 +95,21 @@ export const updateProfile = asyncHandler(async (req: Request, res: Response, _n
     profileImage?: string;
   };
   const user = await authService.updateProfile(req.user!._id.toString(), { name, phone, profileImage });
+
+  // Log profile update activity
+  await logActivity({
+    userId: req.user!._id.toString(),
+    userName: req.user.name,
+    userEmail: req.user.email,
+    type: 'profile_updated',
+    description: 'User updated their profile',
+    metadata: { fields: Object.keys({ name, phone, profileImage }).filter(k => req.body[k]) },
+  });
+
   sendSuccess(res, { user }, 'Profile updated successfully');
+});
+
+export const getAllUsers = asyncHandler(async (_req: Request, res: Response, _next: NextFunction) => {
+  const users = await authService.getAllUsers();
+  sendSuccess(res, { users }, 'Users fetched');
 });

@@ -23,7 +23,7 @@ export const getProducts = asyncHandler(async (req: Request, res: Response, _nex
   const result = await productService.getProducts({
     search: req.query.search as string | undefined,
     categoryId: req.query.category as string | undefined,
-    online: req.query.online === 'true',
+    online: req.query.online !== undefined ? req.query.online === 'true' : undefined,
     page: req.query.page ? parseInt(req.query.page as string, 10) : 1,
     limit: req.query.limit ? parseInt(req.query.limit as string, 10) : 20,
   });

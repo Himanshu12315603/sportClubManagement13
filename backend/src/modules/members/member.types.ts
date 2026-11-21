@@ -1,6 +1,6 @@
 import mongoose, { Document } from 'mongoose';
 
-export type MembershipTier = 'gold' | 'silver' | 'junior';
+export type MembershipTier = 'gold' | 'silver' | 'junior' | 'trial';
 export type MembershipStatus = 'active' | 'expired' | 'suspended' | 'pending';
 
 export interface IMembershipPlan {
@@ -9,6 +9,7 @@ export interface IMembershipPlan {
   description: string;
   price: number;
   durationMonths: number;
+  durationDays?: number;
   discountPercentage: number;
   courtBookingDiscount: number;
   shopDiscount: number;
@@ -43,3 +44,10 @@ export interface IMember {
 }
 
 export interface MemberDocument extends IMember, Document {}
+
+export interface SubscribeMembershipInput {
+  membershipPlanId: string;
+  paymentMethod?: 'cash' | 'card' | 'upi' | 'online' | 'free_trial';
+  paymentReference?: string;
+  notes?: string;
+}

@@ -1,9 +1,11 @@
+import mongoose from 'mongoose';
 import { Member, MemberDocument } from './member.model';
 import { MembershipPlan, MembershipPlanDocument } from './membershipPlan.model';
 import { User } from '../auth/auth.model';
+import { Transaction } from '../finance/finance.model';
 import { AppError, NotFoundError, ConflictError } from '../../utils/AppError';
 import { CreateMemberInput, RenewMembershipInput, UpdateMemberInput } from './member.validation';
-import mongoose from 'mongoose';
+import { SubscribeMembershipInput } from './member.types';
 
 // ---- Membership Plans ----
 
@@ -26,32 +28,118 @@ export const updatePlan = async (id: string, data: Partial<MembershipPlanDocumen
 export const deletePlan = async (id: string): Promise<void> => {
   const plan = await MembershipPlan.findById(id);
   if (!plan) throw new NotFoundError('Membership plan not found');
-  // Soft delete
   plan.isActive = false;
   await plan.save();
 };
 
 // ---- Members ----
 
-export const createMember = async (data: CreateMemberInput): Promise<MemberDocument> => {
-  const { userId, membershipPlanId, startDate, amountPaid, paymentMethod, paymentReference, notes } = data;
+/**
+ * Self-service membership subscription for regular members/visitors.
+ * Allows grabbing Gold, Silver, Junior, or Free Trial membership!
+ */
+export const subscribeMembership = async (
+  userId: string,
+  data: SubscribeMembershipInput
+): Promise<MemberDocument> => {
+  const rawPlanId = (data as any).membershipPlanId || (data as any).planId;
+  const { paymentMethod = 'online', paymentReference, notes } = data;
 
-  // Verify user exists
   const user = await User.findById(userId);
   if (!user) throw new NotFoundError('User not found');
 
-  // Check if user is already a member
+  const existing = await Member.findOne({ userId });
+  if (existing && existing.status === 'active') {
+    throw new ConflictError('You already have an active membership. You can renew or upgrade your existing plan.');
+  }
+
+  const plan = mongoose.isValidObjectId(rawPlanId)
+    ? await MembershipPlan.findById(rawPlanId)
+    : await MembershipPlan.findOne({ tier: rawPlanId });
+  if (!plan) throw new NotFoundError('Membership plan not found');
+  if (!plan.isActive) throw new AppError('This membership plan is currently not available', 400);
+
+  const start = new Date();
+  const end = new Date(start);
+  if (plan.durationDays) {
+    end.setDate(end.getDate() + plan.durationDays);
+  } else {
+    end.setMonth(end.getMonth() + plan.durationMonths);
+  }
+
+  const effectivePaymentMethod = plan.price === 0 ? 'free_trial' : paymentMethod;
+
+  let member: MemberDocument;
+  if (existing) {
+    existing.membershipPlan = plan._id as mongoose.Types.ObjectId;
+    existing.tier = plan.tier;
+    existing.status = 'active';
+    existing.startDate = start;
+    existing.endDate = end;
+    existing.amountPaid = plan.price;
+    existing.paymentMethod = effectivePaymentMethod;
+    if (paymentReference) existing.paymentReference = paymentReference;
+    if (notes) existing.notes = notes;
+    await existing.save();
+    member = existing;
+  } else {
+    member = await Member.create({
+      userId,
+      membershipPlan: plan._id,
+      tier: plan.tier,
+      status: 'active',
+      startDate: start,
+      endDate: end,
+      amountPaid: plan.price,
+      paymentMethod: effectivePaymentMethod,
+      paymentReference,
+      notes,
+    });
+  }
+
+  // Update user role to member
+  await User.findByIdAndUpdate(userId, { role: 'member' });
+
+  // Record revenue if price > 0
+  if (plan.price > 0) {
+    await Transaction.create({
+      type: 'revenue',
+      source: 'membership',
+      amount: plan.price,
+      paymentMethod: effectivePaymentMethod === 'free_trial' ? 'online' : effectivePaymentMethod,
+      reference: member.memberId,
+      description: `Membership subscription: ${plan.name} (${plan.tier.toUpperCase()})`,
+      relatedId: member._id,
+      performedBy: userId,
+    });
+  }
+
+  return member.populate([
+    { path: 'userId', select: 'name email phone profileImage' },
+    { path: 'membershipPlan', select: 'name tier price benefits durationMonths durationDays discountPercentage courtBookingDiscount shopDiscount cafeDiscount' },
+  ]);
+};
+
+export const createMember = async (data: CreateMemberInput): Promise<MemberDocument> => {
+  const { userId, membershipPlanId, startDate, amountPaid, paymentMethod, paymentReference, notes } = data;
+
+  const user = await User.findById(userId);
+  if (!user) throw new NotFoundError('User not found');
+
   const existing = await Member.findOne({ userId });
   if (existing) throw new ConflictError('User is already a member');
 
-  // Get plan
   const plan = await MembershipPlan.findById(membershipPlanId);
   if (!plan) throw new NotFoundError('Membership plan not found');
   if (!plan.isActive) throw new AppError('Membership plan is not active', 400);
 
   const start = startDate ? new Date(startDate) : new Date();
   const end = new Date(start);
-  end.setMonth(end.getMonth() + plan.durationMonths);
+  if (plan.durationDays) {
+    end.setDate(end.getDate() + plan.durationDays);
+  } else {
+    end.setMonth(end.getMonth() + plan.durationMonths);
+  }
 
   const member = await Member.create({
     userId,
@@ -66,7 +154,6 @@ export const createMember = async (data: CreateMemberInput): Promise<MemberDocum
     notes,
   });
 
-  // Update user role to member
   await User.findByIdAndUpdate(userId, { role: 'member' });
 
   return member.populate([
@@ -85,13 +172,10 @@ export const getMembers = async (query: {
   const { search, status, tier, page = 1, limit = 20 } = query;
   const skip = (page - 1) * limit;
 
-  // Build filter
   const memberFilter: Record<string, unknown> = {};
   if (status) memberFilter.status = status;
   if (tier) memberFilter.tier = tier;
 
-  // If search, find user IDs first
-  let userIds: mongoose.Types.ObjectId[] | undefined;
   if (search) {
     const users = await User.find({
       $or: [
@@ -100,14 +184,17 @@ export const getMembers = async (query: {
         { phone: { $regex: search, $options: 'i' } },
       ],
     }).select('_id');
-    userIds = users.map((u) => u._id as mongoose.Types.ObjectId);
-    memberFilter.userId = { $in: userIds };
+    const userIds = users.map((u) => u._id as mongoose.Types.ObjectId);
+    memberFilter.$or = [
+      { userId: { $in: userIds } },
+      { memberId: { $regex: search, $options: 'i' } },
+    ];
   }
 
   const [members, total] = await Promise.all([
     Member.find(memberFilter)
-      .populate('userId', 'name email phone profileImage')
-      .populate('membershipPlan', 'name tier price')
+      .populate('userId', 'name email phone profileImage lastLogin')
+      .populate('membershipPlan', 'name tier price benefits durationMonths durationDays')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit),
@@ -119,16 +206,16 @@ export const getMembers = async (query: {
 
 export const getMemberById = async (id: string): Promise<MemberDocument> => {
   const member = await Member.findById(id)
-    .populate('userId', 'name email phone profileImage')
-    .populate('membershipPlan', 'name tier price benefits');
+    .populate('userId', 'name email phone profileImage lastLogin')
+    .populate('membershipPlan', 'name tier price benefits durationMonths durationDays');
   if (!member) throw new NotFoundError('Member not found');
   return member;
 };
 
 export const getMemberByUserId = async (userId: string): Promise<MemberDocument | null> => {
   return Member.findOne({ userId })
-    .populate('userId', 'name email phone profileImage')
-    .populate('membershipPlan', 'name tier price benefits discountPercentage courtBookingDiscount shopDiscount cafeDiscount maxBookingsPerDay');
+    .populate('userId', 'name email phone profileImage lastLogin')
+    .populate('membershipPlan', 'name tier price benefits discountPercentage courtBookingDiscount shopDiscount cafeDiscount maxBookingsPerDay durationMonths durationDays');
 };
 
 export const updateMember = async (id: string, data: UpdateMemberInput): Promise<MemberDocument> => {
@@ -147,7 +234,6 @@ export const renewMembership = async (id: string, data: RenewMembershipInput): P
   const plan = await MembershipPlan.findById(planId);
   if (!plan) throw new NotFoundError('Membership plan not found');
 
-  // Push current end date to renewal history
   member.renewalHistory.push({
     renewedAt: new Date(),
     endDate: member.endDate,
@@ -155,10 +241,13 @@ export const renewMembership = async (id: string, data: RenewMembershipInput): P
     paymentMethod: data.paymentMethod,
   });
 
-  // Extend from today or existing end date, whichever is later
   const renewFrom = member.endDate > new Date() ? member.endDate : new Date();
   const newEndDate = new Date(renewFrom);
-  newEndDate.setMonth(newEndDate.getMonth() + plan.durationMonths);
+  if (plan.durationDays) {
+    newEndDate.setDate(newEndDate.getDate() + plan.durationDays);
+  } else {
+    newEndDate.setMonth(newEndDate.getMonth() + plan.durationMonths);
+  }
 
   member.membershipPlan = new mongoose.Types.ObjectId(planId);
   member.tier = plan.tier;
@@ -175,7 +264,6 @@ export const renewMembership = async (id: string, data: RenewMembershipInput): P
   ]);
 };
 
-// Auto-expire memberships (run via cron or on-demand)
 export const checkAndExpireMemberships = async (): Promise<number> => {
   const result = await Member.updateMany(
     { endDate: { $lt: new Date() }, status: 'active' },

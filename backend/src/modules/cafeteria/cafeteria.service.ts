@@ -134,11 +134,12 @@ export const updateCafeOrderStatus = async (
   return order;
 };
 
-export const getCafeOrders = async (query: { status?: string; tableId?: string; page?: number; limit?: number }) => {
-  const { status, tableId, page = 1, limit = 20 } = query;
+export const getCafeOrders = async (query: { status?: string; tableId?: string; customerId?: string; page?: number; limit?: number }) => {
+  const { status, tableId, customerId, page = 1, limit = 20 } = query;
   const filter: Record<string, unknown> = {};
   if (status) filter.status = status;
   if (tableId) filter.table = tableId;
+  if (customerId) filter.customer = customerId;
 
   const skip = (page - 1) * limit;
   const [orders, total] = await Promise.all([

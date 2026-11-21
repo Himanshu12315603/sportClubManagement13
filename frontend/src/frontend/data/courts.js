@@ -14,7 +14,7 @@ import { facilities } from './facilities';
 export const BOOKING_RULES = {
   sessionMinutes: 60,
   slotStepMinutes: 30,
-  maxBookingsPerDay: 2,
+  maxBookingsPerDay: 10,
   openingTime: '06:00',
   closingTime: '22:00',
   peakWindows: [

@@ -1,6 +1,7 @@
 import jwt, { SignOptions } from 'jsonwebtoken';
 import crypto from 'crypto';
 import { User, UserDocument } from './auth.model';
+import { Member, MemberDocument } from '../members/member.model';
 import { AppError, AuthenticationError, NotFoundError } from '../../utils/AppError';
 import {
   RegisterInput,
@@ -9,6 +10,7 @@ import {
   ResetPasswordInput,
   ChangePasswordInput,
 } from './auth.validation';
+import { logActivity } from '../activity/activity.service';
 
 // ---- Token generation ----
 
@@ -42,12 +44,22 @@ export const registerUser = async (data: RegisterInput): Promise<{ user: UserDoc
 
   const user = await User.create(data);
   const accessToken = generateAccessToken(user);
+
+  // Log registration activity
+  await logActivity({
+    userId: user._id.toString(),
+    userName: user.name,
+    userEmail: user.email,
+    type: 'login',
+    description: 'User registered and logged in',
+  });
+
   return { user, accessToken };
 };
 
 export const loginUser = async (
   data: LoginInput
-): Promise<{ user: UserDocument; accessToken: string; refreshToken: string }> => {
+): Promise<{ user: UserDocument; accessToken: string; refreshToken: string; member: MemberDocument | null }> => {
   const user = await User.findOne({ email: data.email }).select('+password');
   if (!user) throw new AuthenticationError('Invalid email or password');
 
@@ -59,10 +71,22 @@ export const loginUser = async (
   user.lastLogin = new Date();
   await user.save({ validateBeforeSave: false });
 
+  // Log login activity
+  await logActivity({
+    userId: user._id.toString(),
+    userName: user.name,
+    userEmail: user.email,
+    type: 'login',
+    description: 'User logged in',
+  });
+
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user);
 
-  return { user, accessToken, refreshToken };
+  // Fetch active member profile if user has one
+  const member = await Member.findOne({ userId: user._id }).populate('membershipPlan');
+
+  return { user, accessToken, refreshToken, member };
 };
 
 export const getMe = async (userId: string): Promise<UserDocument> => {
@@ -132,4 +156,9 @@ export const updateProfile = async (
   );
   if (!user) throw new NotFoundError('User not found');
   return user;
+};
+
+export const getAllUsers = async (): Promise<UserDocument[]> => {
+  const users = await User.find({}).sort({ createdAt: -1 });
+  return users;
 };

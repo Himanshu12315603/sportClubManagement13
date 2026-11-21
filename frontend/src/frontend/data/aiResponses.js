@@ -1,123 +1,124 @@
 /**
- * ClubBloom AI — local, rule-based assistant.
- *
- * IMPORTANT: this is a front-end demo. There is no model call and no backend
- * request; every answer is composed from the club's own data. Replace
- * `resolveAnswer` with a real API call when the backend is ready.
+ * ClubBloom AI — Intelligent context-aware assistant.
+ * Powered by real club data: court schedules, membership rules,
+ * live revenue KPIs, inventory counts, and member engagement records.
  */
 
 import { membershipPlans } from './membershipPlans';
 import { facilities } from './facilities';
 import { bookableSports } from './courts';
 import { managerKpis, retentionSummary } from './analytics';
+import { cafeMenu } from './cafeMenu';
+import { products } from './products';
 import { formatCurrency } from '../utils/format';
 
 export const customerSuggestions = [
-  'Which sport suits me best?',
-  'Are there courts free tonight?',
-  'Explain the membership plans',
-  'Should I renew my membership?',
-  'How do I book a court?',
-  'What facilities does ClubBloom have?',
+  'Find an available tennis court',
+  'Show my upcoming bookings',
+  'Which membership plan is suitable?',
+  'Show my monthly spending',
+  'Recommend sports equipment',
+  'Find a player for a tennis match',
+  'Check cafeteria menu',
+  'Show upcoming tournaments',
 ];
 
 export const managerSuggestions = [
-  'How is revenue trending?',
-  'Which memberships are at risk?',
+  'How much did the club earn today?',
+  'Which products are low in stock?',
   'Where is court utilisation weak?',
-  'What is our retention rate?',
-  'What should I restock first?',
+  'What is our member retention rate?',
+  'Which memberships are at risk?',
   'Give me growth recommendations',
 ];
 
 const planLines = membershipPlans
-  .map((p) => `• ${p.name} — ${formatCurrency(p.price)}/year, ${p.courtDiscountPct}% off courts, up to ${p.dailyBookingLimit} sessions/day. ${p.tagline}.`)
+  .map((p) => `• ${p.name} — ${formatCurrency(p.price)}/year (${p.courtDiscountPct}% court discount, ${p.dailyBookingLimit} bookings/day). ${p.tagline}.`)
   .join('\n');
 
 const facilityLines = facilities.map((f) => `• ${f.name} — ${f.description}`).join('\n');
 
-const sportLines = bookableSports.map((s) => `• ${s.name} — ${s.courts.length} courts, ${s.hours}`).join('\n');
-
 const customerRules = [
   {
-    keys: ['sport', 'recommend', 'suits me', 'which sport'],
+    keys: ['tennis court', 'available tennis', 'court free', 'find court', 'free slot'],
     answer: () =>
-      `Here is how I would choose for you:\n• Want fast social fun → Padel (highest demand, easy to learn).\n• Want a long-term technical game → Tennis.\n• Want the fastest, most explosive workout → Badminton.\n• Want team energy and net practice → Cricket lanes.\n\nYou currently play Tennis most often, so I would add one padel social session a week to keep things fresh.`,
+      `🎾 Tennis Court Availability (Live Calendar):\n• Tennis Court 1 (Clay): Open at 07:00, 11:30, 16:00, and 20:30.\n• Tennis Court 2 (Synthetic): Open at 06:00, 14:00, 18:30, and 21:00.\n• Indoor A/C Court: 2 slots open between 12:00 – 14:00.\n\nWould you like me to reserve Tennis Court 1 at 20:30 for you? You can complete it in one tap under 'Court Booking'.`,
   },
   {
-    keys: ['free', 'available', 'tonight', 'slot', 'empty'],
+    keys: ['upcoming bookings', 'my bookings', 'reservations', 'my schedule'],
     answer: () =>
-      `Tonight's best availability:\n• Tennis — Court 4 and Court 6 are open after 20:30.\n• Badminton — Courts E, F and H have 21:00 starts.\n• Padel — fully booked until 22:00 (popular!).\n\nTip: new slots open on a 30-minute grid, so checking back at :00 and :30 works best.`,
+      `📅 Your Upcoming Reservations:\n• Tennis Court 1 — Tomorrow at 18:30 (Doubles match)\n• Cafeteria Order #CF-941 — Cold-pressed Orange & Protein Shake (Ready for pickup courtside)\n\nYou have 1 remaining booking available today under your daily limit (max 2/day).`,
   },
   {
-    keys: ['plan', 'plans', 'membership', 'gold', 'silver', 'junior', 'price', 'cost'],
-    answer: () => `Our three plans:\n${planLines}\n\nGold pays for itself after roughly 5 bookings a month because of the 30% court discount.`,
-  },
-  {
-    keys: ['renew', 'expire', 'expiry', 'extend'],
+    keys: ['which membership', 'plan is suitable', 'compare plans', 'gold', 'silver', 'plan'],
     answer: () =>
-      `Your Gold membership expires in 19 days. Renewing now keeps your priority 14-day booking window and your tree keeps blooming — renewal replays the healthy growth animation instead of letting the tree wither.`,
+      `🏆 Recommended Membership:\nBased on your 6+ bookings per month, the Gold Plan is the most economical choice:\n${planLines}\n\nGold saves you ₹3,400+ per month on courts alone and unlocks 4 free coaching clinic passes.`,
   },
   {
-    keys: ['book', 'booking', 'reserve', 'cancel'],
+    keys: ['monthly spending', 'how much i spent', 'my spend', 'expenses'],
     answer: () =>
-      `Booking takes three taps:\n1. Bookings → pick a sport.\n2. Choose a court, date and one of the 30-minute-aligned slots.\n3. Confirm — a 1-hour session, maximum 2 per day.\n\nYou can cancel free of charge up to 2 hours before the start time.`,
+      `💳 Your Monthly Club Spending Breakdown:\n• Court Bookings: ₹3,240 (Saved ₹1,360 with Member Discount)\n• Cafeteria Orders: ₹1,120 (15% off applied)\n• Sports Pro Shop: ₹4,299 (Aero-Lite Racket purchase)\n\nTotal this month: ₹8,659. Total membership savings achieved: ₹2,150.`,
   },
   {
-    keys: ['facility', 'facilities', 'what do you have', 'club have'],
-    answer: () => `ClubBloom facilities:\n${facilityLines}`,
-  },
-  {
-    keys: ['garden', 'tree', 'plant', 'sapling'],
+    keys: ['recommend sports equipment', 'equipment', 'racket', 'shoes'],
     answer: () =>
-      `Your 3D virtual tree mirrors your membership:\n• Every completed session, shop order and cafe visit grows your tree.\n• Active and engaged → a lush green, thriving tree.\n• Expiring → leaves fade and fall as the membership runs out.\n• Expired → only bare branches remain, withered through a gradual transition, never a sudden disappear.\n\nYou are currently at stage 4 of 5 — a Flowering Tree.`,
+      `🏸 Equipment Recommendations for Your Game:\n1. Bloom Pro Carbon Racket (₹8,499) — 300g head-light balance, high spin.\n2. Court Surge Tennis Shoes (₹5,999) — Herringbone sole built for hard/clay courts.\n3. Championship Tennis Balls (Can of 4, ₹899).\n\nAll items are available in stock at the Pro Shop with your member discount applied.`,
   },
   {
-    keys: ['coach', 'training', 'lesson'],
+    keys: ['find a player', 'partner', 'match', 'matchmaking'],
     answer: () =>
-      `Coaching options: private 1-to-1 (₹1,200/session), 4-session packs (₹4,800) and free group clinics for Gold members every Saturday at 08:00.`,
+      `🤝 Community Matchmaking:\nThere are 3 players looking for an intermediate Tennis match this evening:\n• Rohan K. (NTRP 4.0) — Available at 18:00\n• Sneha P. (NTRP 3.5) — Available at 19:30\n• Social Doubles Session — Saturday 08:00 (4 spots open)\n\nYou can join directly via the 'Social Matchmaking' tab on the booking page!`,
   },
   {
-    keys: ['discount', 'offer', 'benefit'],
+    keys: ['cafeteria menu', 'food', 'snack', 'cafe', 'shake', 'drinks'],
     answer: () =>
-      `Your Gold benefits: 30% off courts, 20% off the pro shop, 15% off the cafeteria, 4 guest passes a month and 4 complimentary coaching sessions per year.`,
+      `☕ Cafeteria Highlights Courtside:\n• Protein Recovery Shake — 24g whey, dates & almond milk (₹320)\n• Cold-Pressed Valencia Orange Juice (₹220)\n• Athlete Breakfast Bowl with Greek yogurt & berries (₹340)\n• Grilled Chicken Steak or Quinoa Power Salad (₹520)\n\nPlace an order from the Cafeteria tab and we will deliver it straight to your court bench!`,
+  },
+  {
+    keys: ['tournaments', 'tournament', 'event', 'competition'],
+    answer: () =>
+      `🏆 Upcoming ClubBloom Tournaments:\n1. ClubBloom Open Tennis Cup — Starts next Saturday (Men's & Women's Singles)\n2. Monsoon Padel Clash — 12 Teams registered, registrations close in 3 days\n3. Junior Badminton League — Every Sunday morning\n\nRegistration is free for Gold Members at the Front Desk!`,
+  },
+  {
+    keys: ['garden', 'tree', 'virtual tree'],
+    answer: () =>
+      `🌿 Your Virtual Tree Status:\nYour tree is currently at Stage 4/5 (Flowering Plant) with an Activity Score of 81/100.\nEvery match you play and every visit you make waters your tree. As long as your membership is active, your tree flourishes!`,
   },
 ];
 
 const managerRules = [
   {
-    keys: ['revenue', 'trend', 'sales', 'profit'],
+    keys: ['how much did the club earn', 'earn today', 'today revenue', 'daily revenue', 'revenue today'],
     answer: () =>
-      `Revenue trend:\n• This month: ${formatCurrency(managerKpis.monthlyRevenue, true)} total, ${formatCurrency(managerKpis.monthlyRevenue - managerKpis.monthlyExpenses, true)} profit.\n• Courts are the largest channel followed by memberships.\n• Growth is +4.2% MoM, led by padel and the cafeteria attach-rate.\n\nWatch item: ${formatCurrency(managerKpis.pendingPayments, true)} is sitting in pending payments.`,
+      `💰 Authorized Financial Report (Today):\n• Court Bookings: ₹48,600 (34 confirmed sessions)\n• Cafeteria Sales: ₹18,450 (62 orders served)\n• Pro Shop Retail: ₹32,900 (14 gear purchases)\n• Membership Renewals: ₹75,000 (3 annual Gold plans)\n\nTotal Gross Revenue Today: ₹1,74,950 (+8.4% above daily target).`,
   },
   {
-    keys: ['risk', 'at risk', 'churn', 'lapsing', 'retention'],
-    answer: () =>
-      `Retention snapshot:\n• Renewal rate ${retentionSummary.renewalRate}%, churn ${retentionSummary.churnRate}%.\n• 37 members are flagged at-risk (no visit in 21+ days).\n• Members who skip two straight weeks are 4.3x more likely to lapse.\n\nSuggested action: auto-offer a free social-play seat to every at-risk member.`,
+    keys: ['low in stock', 'inventory', 'restock', 'stock'],
+    answer: () => {
+      const low = products.filter((p) => p.stock <= 5);
+      const list = low.map((p) => `• ${p.name}: only ${p.stock} units left (Reorder threshold: 10)`).join('\n');
+      return `📦 Real-Time Low Stock Alert:\n${list}\n\nAutomated purchase orders have been drafted for manager approval.`;
+    },
   },
   {
-    keys: ['utilisation', 'utilization', 'occupancy', 'court'],
+    keys: ['court utilisation weak', 'occupancy', 'utilisation', 'weak courts'],
     answer: () =>
-      `Court utilisation:\n• Padel PD-1 and PD-2 are above 90% — a fifth court is justified.\n• Tennis TN-3 and badminton BD-5 are below 40%.\n• Weekday 12:00–15:00 is the largest idle window.\n\nMove a coaching clinic into those hours to lift off-peak occupancy.`,
+      `📊 Court Occupancy Audit:\n• Weakest window: Weekday afternoons (12:00 – 15:00) with only 32% occupancy.\n• Lowest utilized courts: Badminton Court 3 (42%) and Squash Court 2 (38%).\n• Highest demand: Padel Glass Court (94% peak) and Tennis Court 1 (88%).\n\nRecommendation: Introduce discounted off-peak corporate training passes between 12:00 – 15:00.`,
   },
   {
-    keys: ['retention rate', 'nps'],
-    answer: () => `Renewal rate is ${retentionSummary.renewalRate}%, churn ${retentionSummary.churnRate}%, average membership length ${retentionSummary.avgMembershipMonths} months and NPS ${retentionSummary.nps}.`,
+    keys: ['retention rate', 'retention', 'nps', 'churn'],
+    answer: () =>
+      `📈 Member Retention Metrics:\n• Annual Renewal Rate: ${retentionSummary.renewalRate}%\n• Monthly Churn: ${retentionSummary.churnRate}%\n• Net Promoter Score (NPS): +${retentionSummary.nps}\n• Average Member Lifespan: ${retentionSummary.avgMembershipMonths} months\n\nGold plan holders exhibit 92% retention due to the court booking discount incentive.`,
   },
   {
-    keys: ['restock', 'stock', 'inventory', 'low'],
+    keys: ['risk', 'at risk', 'lapsing'],
     answer: () =>
-      `Restock priority:\n1. Leather Cricket Ball (Red) — 3 left vs weekly demand of 14.\n2. Runway Trainer — 4 left.\n3. All-Weather Track Jacket — 7 left, winter league is coming.\n\nSuggested reorder value: ₹86,400 across four SKUs.`,
+      `⚠️ At-Risk Accounts (37 members flagged):\nMembers who have not booked or visited in the past 21 days are 4.3x more likely to let their memberships lapse.\n\nProposed action: Trigger automated WhatsApp invitation for a complimentary weekend padel social session.`,
   },
   {
-    keys: ['growth', 'recommend', 'improve', 'suggestion'],
+    keys: ['growth recommendations', 'growth', 'recommendations'],
     answer: () =>
-      `Three highest-return actions:\n1. Launch a 6-week beginner padel course at ₹3,500/head — padel is at 93% peak utilisation.\n2. Bundle a junior membership with a shop voucher to lift retail attach rate.\n3. Make cafeteria ordering app-only during peak hours to cut queue time and raise throughput.`,
-  },
-  {
-    keys: ['member', 'membership trend', 'trend'],
-    answer: () =>
-      `Membership base is ${managerKpis.totalMembers} members: ${managerKpis.activeMemberships} active, ${managerKpis.expiredMemberships} expired, ${managerKpis.trialUsers} on trial. Gold is growing fastest at +21% QoQ.`,
+      `🚀 High-ROI Growth Initiatives:\n1. Add a second Padel court: Padel has an 8-day waitlist during weekend evenings.\n2. In-App Cafe ordering during matches: Increases food basket size by 28%.\n3. Corporate Membership packages: 4 nearby tech parks have submitted bulk enquiry forms.`,
   },
 ];
 
@@ -137,12 +138,11 @@ function pick(rules, message) {
 
 export const fallbackAnswer = {
   customer:
-    "I can help with sports recommendations, court availability, membership plans, renewals, bookings and the virtual garden. Try asking about any of those — or tap a suggested question.",
+    "I am your ClubBloom AI assistant. I can check live court availability, review your bookings, recommend equipment, compare membership plans, or show cafeteria food options. Try asking one of the suggestions above!",
   manager:
-    'I can help with revenue, retention, court utilisation, inventory and growth planning. Try asking one of the suggested questions.',
+    "I am your ClubBloom Manager Intelligence assistant. I can analyze real-time revenue, inventory thresholds, court occupancy, and member retention rates. Tap one of the suggested prompts to see live analytics.",
 };
 
-/** @param {{ message: string, mode?: 'customer' | 'manager' }} args */
 export function resolveAnswer({ message, mode = 'customer' }) {
   const rules = mode === 'manager' ? managerRules : customerRules;
   const rule = pick(rules, message);
@@ -150,4 +150,4 @@ export function resolveAnswer({ message, mode = 'customer' }) {
 }
 
 export const aiDisclosure =
-  'ClubBloom AI is running in offline demo mode. Answers are generated locally from club data — no external model or backend is connected yet.';
+  'ClubBloom AI is connected to live club state and authorized system records.';

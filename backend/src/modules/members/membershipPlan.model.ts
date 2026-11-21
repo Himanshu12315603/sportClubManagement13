@@ -1,6 +1,6 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
-export type MembershipTier = 'gold' | 'silver' | 'junior';
+export type MembershipTier = 'gold' | 'silver' | 'junior' | 'trial';
 
 export interface IMembershipPlan {
   name: string;
@@ -8,6 +8,7 @@ export interface IMembershipPlan {
   description: string;
   price: number;
   durationMonths: number;
+  durationDays?: number;
   discountPercentage: number;
   courtBookingDiscount: number;
   shopDiscount: number;
@@ -24,13 +25,14 @@ const membershipPlanSchema = new Schema<MembershipPlanDocument>(
     name: { type: String, required: true, trim: true },
     tier: {
       type: String,
-      enum: ['gold', 'silver', 'junior'],
+      enum: ['gold', 'silver', 'junior', 'trial'],
       required: true,
       unique: true,
     },
     description: { type: String, required: true },
     price: { type: Number, required: true, min: 0 },
-    durationMonths: { type: Number, required: true, min: 1 },
+    durationMonths: { type: Number, default: 1, min: 0 },
+    durationDays: { type: Number, min: 1 },
     discountPercentage: { type: Number, default: 0, min: 0, max: 100 },
     courtBookingDiscount: { type: Number, default: 0, min: 0, max: 100 },
     shopDiscount: { type: Number, default: 0, min: 0, max: 100 },

@@ -1,90 +1,100 @@
 /**
- * Image helper — builds a prompt-driven image URL for web assets.
- * All artwork is generated from text prompts (no hardcoded external assets).
- *
- * When the prompt-driven image is unavailable (slow API, network, etc.) a
- * reliable Unsplash Source fallback is provided so product/facility/cafe
- * cards always show a real image.
+ * Image helper — builds reliable image URLs for web assets.
+ * Uses high-speed Unsplash CDN images exclusively to guarantee instant, crisp rendering
+ * and eliminate slow text-to-image API placeholder errors ("Image is generating...").
  */
-const BASE = 'https://coresg-normal.trae.ai/api/ide/v1/text_to_image';
-
 export function genImage(prompt, size = 'landscape_4_3') {
-  return `${BASE}?prompt=${encodeURIComponent(prompt)}&image_size=${size}`;
+  const p = (prompt || '').toLowerCase();
+  if (p.includes('racket') || p.includes('tennis')) {
+    return 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?auto=format&fit=crop&w=800&h=600&q=80';
+  }
+  if (p.includes('badminton') || p.includes('shuttle')) {
+    return 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?auto=format&fit=crop&w=800&h=600&q=80';
+  }
+  if (p.includes('shoe') || p.includes('sneaker')) {
+    return 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=800&h=600&q=80';
+  }
+  if (p.includes('ball')) {
+    return 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?auto=format&fit=crop&w=800&h=600&q=80';
+  }
+  if (p.includes('cafe') || p.includes('food') || p.includes('juice') || p.includes('salad')) {
+    return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&h=600&q=80';
+  }
+  return 'https://images.unsplash.com/photo-1556817411-31ae72fa3ea0?auto=format&fit=crop&w=1200&h=800&q=80';
 }
 
-/** Real, hand-picked Unsplash photo IDs for reliable fallbacks. */
+/** Direct Unsplash photo IDs for reliable product images. */
 export const productPhoto = {
   'P-1001': '1622276677921-14291953b5ec', // tennis racket
-  'P-1002': '1606112251290-a4904b3c1ba5', // badminton
+  'P-1002': '1626224583764-f87db24ac4ea', // badminton racket
   'P-1003': '1617071331051-a1d17c4f0e3b', // padel racket
-  'P-2001': '1542291026-7a8c40eba340', // tennis shoes
-  'P-2002': '1595950194232-d03f1058f177', // sports shoes
-  'P-2003': '1549298916-b41d501d3772', // running shoes
-  'P-3001': '1622276677921-14291953b5ec', // tennis balls
-  'P-3002': '1565731369464-e858e2091b75', // shuttlecock
-  'P-3003': '1531415853970-0127803342f3', // cricket ball
+  'P-2001': '1542291026-7eec264c27ff', // tennis shoes
+  'P-2002': '1595950653106-6c9ebd614d3a', // sports shoes
+  'P-2003': '1584735935682-2f2b69dff9d2', // gym sneakers
+  'P-3001': '1554068865-24cecd4e34b8', // tennis balls
+  'P-3002': '1613918108466-292b78a8ef95', // shuttlecocks
+  'P-3003': '1531415074968-036ba1b575da', // cricket ball
   'P-4001': '1511671782779-c97d3d27b1c4', // grip tape
-  'P-4002': '1551525326-26a6d574404b', // racket bag
-  'P-4003': '1575311105861-91122cc579fa', // fitness band
-  'P-5001': '1521572163474-6864f9cf17ab', // tee
-  'P-5002': '1591047139829-d91aecb6caea', // shorts
-  'P-5003': '1591047139829-d91aecb6caea', // jacket
+  'P-4002': '1553062407-98eeb64c6a62', // sports bag
+  'P-4003': '1575311373937-040b8e1fd5b6', // smart fitness band
+  'P-5001': '1521572267360-ee0c2909d518', // athletic performance tee
+  'P-5002': '1591195853828-11db59a44f6b', // sport shorts
+  'P-5003': '1544441893-675973e31985', // training jacket
 };
 
-const categorySearch = {
-  rackets: 'tennis-racket',
-  shoes: 'sports-shoes',
-  balls: 'sports-ball',
-  accessories: 'sports-equipment',
-  apparel: 'sportswear',
+const categoryFallbacks = {
+  rackets: '1622276677921-14291953b5ec',
+  shoes: '1542291026-7eec264c27ff',
+  balls: '1554068865-24cecd4e34b8',
+  accessories: '1553062407-98eeb64c6a62',
+  apparel: '1521572267360-ee0c2909d518',
 };
 
 /**
- * Returns a reliable Unsplash Source URL for a product (by id) or a category.
- * Unsplash Source serves a stable CDN image keyed by photo id or keyword, so
- * it always loads quickly even when the text-to-image API is slow.
+ * Returns a high-speed Unsplash CDN image URL.
  */
 export function fallbackImage(id, category, size = 'square') {
-  const photoId = productPhoto[id];
-  const width = 600;
-  const height = 600;
-  if (photoId) {
-    return `https://source.unsplash.com/${photoId}/${width}x${height}`;
-  }
-  const kw = categorySearch[category] || 'sports-product';
-  return `https://source.unsplash.com/featured/${width}x${height}/?${kw}`;
+  const photoId = productPhoto[id] || categoryFallbacks[category] || '1622276677921-14291953b5ec';
+  const w = size === 'square' ? 600 : 800;
+  const h = size === 'square' ? 600 : 500;
+  return `https://images.unsplash.com/photo-${photoId}?auto=format&fit=crop&w=${w}&h=${h}&q=80`;
 }
 
 export function fallbackLandscape(keyword) {
-  return `https://source.unsplash.com/featured/1600x900/?${encodeURIComponent(keyword)}`;
+  const landscapeMap = {
+    'sports-shop': 'https://images.unsplash.com/photo-1556817411-31ae72fa3ea0?auto=format&fit=crop&w=1600&h=900&q=80',
+    'tennis': 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?auto=format&fit=crop&w=1600&h=900&q=80',
+    'badminton': 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?auto=format&fit=crop&w=1600&h=900&q=80',
+    'cafeteria': 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1600&h=900&q=80',
+  };
+  return landscapeMap[keyword] || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1600&h=900&q=80';
 }
 
-/** Real Unsplash photo IDs for cafe menu fallbacks (hand-picked per dish). */
+/** Hand-picked Unsplash photo IDs for cafeteria dishes. */
 export const cafePhoto = {
-  'CF-101': '1480518673665-4d08dccf3c87',
-  'CF-102': '1544149099-1e5cc06e94d3',
-  'CF-103': '1494822578308-a80ea9a0646e',
-  'CF-104': '1600271886744-d558207aca8b',
-  'CF-201': '1525351484163-7529414344d8',
-  'CF-202': '1567620905732-2d1ec7ab7445',
-  'CF-203': '1525351484163-7529414344d8',
-  'CF-301': '1546069901-ba9599a7e63c',
-  'CF-302': '1565299624946-b28f40a0ae38',
-  'CF-303': '1567620905732-2d1ec7ab7445',
-  'CF-401': '1565299624946-b28f40a0ae38',
-  'CF-402': '1565299585323-38d6b0865b47',
-  'CF-403': '1551782450-a2132b4ba21d',
-  'CF-501': '1512621776951-a57141f2eefd',
-  'CF-502': '1546069901-ba9599a7e63c',
-  'CF-601': '1565958011703-44f9829ba187',
-  'CF-602': '1551024506-0bccd828d307',
+  'C-101': '1613478223719-2ab802602423', // fresh orange juice
+  'C-102': '1553530666-ba11a7da3888', // protein smoothie
+  'C-103': '1561336313-0bd5e0b27ec8', // masala chai
+  'C-104': '1513558161293-cdaf765ed2fd', // fresh lime soda
+  'C-201': '1511690656952-34342bb7c2f2', // athlete breakfast bowl
+  'C-202': '1525351484163-7529414344d8', // egg white omelette
+  'C-203': '1528735602780-2552fd46c7af', // cheese toast
+  'C-301': '1532550907401-a500c9a57435', // grilled chicken steak
+  'C-302': '1540420773420-3366772f4999', // quinoa power salad
+  'C-303': '1551183053-bf91a1d81141', // protein pasta
+  'C-401': '1568901346375-23c9450c58cd', // gourmet burger
+  'C-402': '1509722747041-616f39b57569', // club sandwich
+  'C-403': '1541592106381-b31e9677c0e5', // baked sweet potato fries
+  'C-501': '1546069901-ba9599a7e63c', // avocado superbowl
+  'C-502': '1512621776951-a57141f2eefd', // Mediterranean bowl
+  'C-601': '1587314168485-3236d6710814', // protein chia pudding
+  'C-602': '1579954115545-a95591f28bfc', // berry acai bowl
 };
 
 export function fallbackCafe(id, category) {
-  const photoId = cafePhoto[id];
-  if (photoId) return `https://source.unsplash.com/${photoId}/600x600`;
-  const kw = category || 'food';
-  return `https://source.unsplash.com/featured/600x600/?${kw}`;
+  const photoId = cafePhoto[id] || '1546069901-ba9599a7e63c';
+  return `https://images.unsplash.com/photo-${photoId}?auto=format&fit=crop&w=600&h=600&q=80`;
 }
 
 export default genImage;
+

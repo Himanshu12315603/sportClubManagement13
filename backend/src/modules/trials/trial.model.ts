@@ -3,10 +3,11 @@ import mongoose, { Document, Schema } from 'mongoose';
 export type TrialStatus = 'registered' | 'confirmed' | 'attended' | 'cancelled' | 'converted';
 
 export interface ITrial {
+  userId?: mongoose.Types.ObjectId;
   name: string;
   email: string;
   phone: string;
-  sport: 'tennis' | 'cricket';
+  sport: string;
   preferredDate: Date;
   preferredTimeSlot: string;
   experienceLevel: 'beginner' | 'intermediate' | 'advanced';
@@ -20,10 +21,11 @@ export interface TrialDocument extends ITrial, Document {}
 
 const trialSchema = new Schema<TrialDocument>(
   {
+    userId: { type: Schema.Types.ObjectId, ref: 'User' },
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, trim: true, lowercase: true },
     phone: { type: String, required: true, trim: true },
-    sport: { type: String, enum: ['tennis', 'cricket'], required: true },
+    sport: { type: String, required: true },
     preferredDate: { type: Date, required: true },
     preferredTimeSlot: { type: String, required: true },
     experienceLevel: { type: String, enum: ['beginner', 'intermediate', 'advanced'], default: 'beginner' },
@@ -39,6 +41,7 @@ const trialSchema = new Schema<TrialDocument>(
   { timestamps: true }
 );
 
+trialSchema.index({ userId: 1 });
 trialSchema.index({ status: 1, preferredDate: 1 });
 
 export const Trial = mongoose.model<TrialDocument>('Trial', trialSchema);

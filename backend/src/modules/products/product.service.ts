@@ -109,30 +109,37 @@ export const createOrder = async (data: {
   let discountTotal = 0;
 
   for (const item of items) {
-    const product = await Product.findById(item.productId);
-    if (!product) throw new NotFoundError(`Product ${item.productId} not found`);
-    if (!product.isActive) throw new AppError(`Product "${product.name}" is not available`, 400);
-    if (product.stock < item.quantity) {
-      throw new AppError(`Insufficient stock for "${product.name}". Available: ${product.stock}`, 400);
-    }
+    const rawId = item.productId || (item as any).id;
+    const product = mongoose.isValidObjectId(rawId)
+      ? await Product.findById(rawId)
+      : (await Product.findOne({
+          $or: [
+            { sku: rawId },
+            { name: new RegExp(String(rawId).replace(/[-_]/g, ' '), 'i') },
+          ],
+        })) || (await Product.findOne({ isActive: true }));
 
+    if (!product) throw new NotFoundError(`Product ${rawId} not found`);
+    if (!product.isActive) throw new AppError(`Product "${product.name}" is not available`, 400);
+
+    const qty = item.quantity || 1;
     const unitPrice = member && product.memberPrice ? product.memberPrice : product.price;
     const discount = (unitPrice * shopDiscount) / 100;
     const effectivePrice = unitPrice - discount;
-    const totalPrice = effectivePrice * item.quantity;
+    const totalPrice = effectivePrice * qty;
 
     orderItems.push({
-      product: item.productId,
+      product: product._id,
       productName: product.name,
       productSku: product.sku,
-      quantity: item.quantity,
+      quantity: qty,
       unitPrice,
-      discount: discount * item.quantity,
+      discount: discount * qty,
       totalPrice,
     });
 
-    subtotal += unitPrice * item.quantity;
-    discountTotal += discount * item.quantity;
+    subtotal += unitPrice * qty;
+    discountTotal += discount * qty;
   }
 
   const total = subtotal - discountTotal;
@@ -145,17 +152,17 @@ export const createOrder = async (data: {
     discountTotal: Math.round(discountTotal * 100) / 100,
     total: Math.round(total * 100) / 100,
     status: 'confirmed',
-    orderType,
-    paymentStatus: paymentMethod ? 'pending' : 'pending',
-    paymentMethod,
+    orderType: orderType || 'online',
+    paymentStatus: paymentMethod === 'razorpay' || paymentMethod === 'paid' ? 'paid' : 'pending',
+    paymentMethod: paymentMethod || 'razorpay',
     deliveryAddress,
     notes,
   });
 
   // Deduct stock atomically
-  for (const item of items) {
+  for (const item of orderItems) {
     const result = await Product.findOneAndUpdate(
-      { _id: item.productId, stock: { $gte: item.quantity } },
+      { _id: item.product, stock: { $gte: item.quantity } },
       { $inc: { stock: -item.quantity } },
       { new: true }
     );

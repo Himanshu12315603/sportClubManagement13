@@ -3,66 +3,271 @@ dotenv.config();
 
 import mongoose from 'mongoose';
 import connectDB from './config/db';
+import { User } from './modules/auth/auth.model';
 import { MembershipPlan } from './modules/members/membershipPlan.model';
+import { Member } from './modules/members/member.model';
 import { Court } from './modules/courts/court.model';
 import { Category, Product } from './modules/products/product.model';
 import { MenuItem, Table } from './modules/cafeteria/cafeteria.model';
+import { Employee } from './modules/employees/employee.model';
+import { Trial } from './modules/trials/trial.model';
 
 const seedData = async () => {
   await connectDB();
   console.log('🌱 Seeding initial club data...');
 
-  // 1. Membership Plans (Gold, Silver, Junior)
-  const existingPlans = await MembershipPlan.countDocuments();
-  if (existingPlans === 0) {
-    await MembershipPlan.create([
-      {
-        name: 'Gold Membership',
-        tier: 'gold',
-        description: 'Premium membership with full access and maximum club discounts.',
-        price: 15000,
-        durationMonths: 12,
-        discountPercentage: 20,
-        courtBookingDiscount: 25,
-        shopDiscount: 15,
-        cafeDiscount: 15,
-        maxBookingsPerDay: 2,
-        benefits: ['Unlimited court access', '25% court discount', '15% shop & cafe discount', 'VIP lounge access'],
-        isActive: true,
-      },
-      {
-        name: 'Silver Membership',
-        tier: 'silver',
-        description: 'Standard membership with regular court access and member pricing.',
-        price: 9000,
-        durationMonths: 12,
-        discountPercentage: 10,
-        courtBookingDiscount: 15,
-        shopDiscount: 10,
-        cafeDiscount: 5,
-        maxBookingsPerDay: 2,
-        benefits: ['Standard court booking', '15% court discount', '10% shop discount'],
-        isActive: true,
-      },
-      {
-        name: 'Junior Membership',
-        tier: 'junior',
-        description: 'Discounted membership plan for youth members under 18 years of age.',
-        price: 5000,
-        durationMonths: 12,
-        discountPercentage: 15,
-        courtBookingDiscount: 20,
-        shopDiscount: 10,
-        cafeDiscount: 10,
-        maxBookingsPerDay: 1,
-        benefits: ['Weekend training slots', 'Junior coaching sessions', '20% court discount'],
-        isActive: true,
-      },
-    ]);
-    console.log('✅ Membership plans seeded');
+  // 1. Membership Plans (Free Trial, Gold, Silver, Junior)
+  let trialPlan = await MembershipPlan.findOne({ tier: 'trial' });
+  if (!trialPlan) {
+    trialPlan = await MembershipPlan.create({
+      name: '7-Day Free Trial',
+      tier: 'trial',
+      description: 'Experience full club benefits for 7 days at zero cost with complimentary session booking.',
+      price: 0,
+      durationMonths: 0,
+      durationDays: 7,
+      discountPercentage: 10,
+      courtBookingDiscount: 10,
+      shopDiscount: 5,
+      cafeDiscount: 5,
+      maxBookingsPerDay: 1,
+      benefits: ['7 Days Full Club Access', '1 Free Trial Court Session', 'Complimentary Equipment Rental'],
+      isActive: true,
+    });
+    console.log('✅ 7-Day Free Trial plan created');
   }
 
-  // 2. Courts (Tennis & Cricket)
+  let goldPlan = await MembershipPlan.findOne({ tier: 'gold' });
+  if (!goldPlan) {
+    goldPlan = await MembershipPlan.create({
+      name: 'Gold Membership',
+      tier: 'gold',
+      description: 'Premium membership with full access and maximum club discounts.',
+      price: 15000,
+      durationMonths: 12,
+      discountPercentage: 20,
+      courtBookingDiscount: 25,
+      shopDiscount: 15,
+      cafeDiscount: 15,
+      maxBookingsPerDay: 2,
+      benefits: ['Unlimited court access', '25% court discount', '15% shop & cafe discount', 'VIP lounge access'],
+      isActive: true,
+    });
+    console.log('✅ Gold plan created');
+  }
+
+  let silverPlan = await MembershipPlan.findOne({ tier: 'silver' });
+  if (!silverPlan) {
+    silverPlan = await MembershipPlan.create({
+      name: 'Silver Membership',
+      tier: 'silver',
+      description: 'Standard membership with regular court access and member pricing.',
+      price: 9000,
+      durationMonths: 12,
+      discountPercentage: 10,
+      courtBookingDiscount: 15,
+      shopDiscount: 10,
+      cafeDiscount: 5,
+      maxBookingsPerDay: 2,
+      benefits: ['Standard court booking', '15% court discount', '10% shop discount'],
+      isActive: true,
+    });
+    console.log('✅ Silver plan created');
+  }
+
+  let juniorPlan = await MembershipPlan.findOne({ tier: 'junior' });
+  if (!juniorPlan) {
+    juniorPlan = await MembershipPlan.create({
+      name: 'Junior Membership',
+      tier: 'junior',
+      description: 'Discounted membership plan for youth members under 18 years of age.',
+      price: 5000,
+      durationMonths: 12,
+      discountPercentage: 15,
+      courtBookingDiscount: 20,
+      shopDiscount: 10,
+      cafeDiscount: 10,
+      maxBookingsPerDay: 1,
+      benefits: ['Weekend training slots', 'Junior coaching sessions', '20% court discount'],
+      isActive: true,
+    });
+    console.log('✅ Junior plan created');
+  }
+
+  // 2. Users & Staff Credentials
+  const createOrGetUser = async (data: {
+    name: string;
+    email: string;
+    password?: string;
+    role: 'super_admin' | 'owner' | 'manager' | 'receptionist' | 'shop_staff' | 'bar_staff' | 'accountant' | 'coach' | 'member' | 'visitor';
+    phone: string;
+  }) => {
+    let user = await User.findOne({ email: data.email });
+    if (!user) {
+      user = await User.create({
+        name: data.name,
+        email: data.email,
+        password: data.password || 'Password123',
+        role: data.role,
+        phone: data.phone,
+        isActive: true,
+      });
+      console.log(`👤 User created: ${data.name} (${data.role})`);
+    } else {
+      user.password = data.password || 'Password123';
+      user.role = data.role;
+      user.isActive = true;
+      await user.save();
+    }
+    return user;
+  };
+
+  const adminUser = await createOrGetUser({
+    name: 'Admin Master',
+    email: 'admin@championsclub.com',
+    role: 'super_admin',
+    phone: '9876543200',
+  });
+
+  const managerUser = await createOrGetUser({
+    name: 'Vikram Mehta (Manager)',
+    email: 'manager@championsclub.com',
+    role: 'manager',
+    phone: '9876543201',
+  });
+
+  const receptionUser = await createOrGetUser({
+    name: 'Pooja Verma (Receptionist)',
+    email: 'reception@championsclub.com',
+    role: 'receptionist',
+    phone: '9876543202',
+  });
+
+  const coachUser = await createOrGetUser({
+    name: 'Coach Rohan (Head Coach)',
+    email: 'coach@championsclub.com',
+    role: 'coach',
+    phone: '9876543203',
+  });
+
+  const shopStaffUser = await createOrGetUser({
+    name: 'Anil Kumar (Shop Staff)',
+    email: 'shop@championsclub.com',
+    role: 'shop_staff',
+    phone: '9876543204',
+  });
+
+  const barStaffUser = await createOrGetUser({
+    name: 'Karan Singhania (Bar Staff)',
+    email: 'bar@championsclub.com',
+    role: 'bar_staff',
+    phone: '9876543205',
+  });
+
+  const goldUser = await createOrGetUser({
+    name: 'Arjun Kapoor (Gold Member)',
+    email: 'goldmember@example.com',
+    role: 'member',
+    phone: '9876543210',
+  });
+
+  const trialUser = await createOrGetUser({
+    name: 'Neha Saxena (Trial Member)',
+    email: 'trialmember@example.com',
+    role: 'member',
+    phone: '9876543211',
+  });
+
+  const visitorUser = await createOrGetUser({
+    name: 'Siddharth Roy (Visitor)',
+    email: 'visitor@example.com',
+    role: 'visitor',
+    phone: '9876543212',
+  });
+
+  // 3. Employee Records for Staff
+  const createOrGetEmployee = async (user: typeof managerUser, dept: string, title: string, salary: number) => {
+    let emp = await Employee.findOne({ userId: user._id });
+    if (!emp) {
+      emp = await Employee.create({
+        userId: user._id,
+        department: dept,
+        designation: title,
+        salary,
+        joiningDate: new Date(),
+        isActive: true,
+      });
+      console.log(`👔 Employee profile created: ${title}`);
+    }
+    return emp;
+  };
+
+  await createOrGetEmployee(managerUser, 'Operations', 'Club Operations Manager', 75000);
+  await createOrGetEmployee(receptionUser, 'Front Office', 'Front Desk Executive', 35000);
+  await createOrGetEmployee(coachUser, 'Sports & Coaching', 'Head Tennis Coach', 60000);
+  await createOrGetEmployee(shopStaffUser, 'Retail', 'Sports Shop Specialist', 30000);
+  await createOrGetEmployee(barStaffUser, 'Hospitality', 'Cafeteria Supervisor', 32000);
+
+  // 4. Memberships for Gold & Trial Members
+  const existingGoldMember = await Member.findOne({ userId: goldUser._id });
+  if (!existingGoldMember && goldPlan) {
+    const start = new Date();
+    const end = new Date(start);
+    end.setFullYear(end.getFullYear() + 1);
+    await Member.create({
+      userId: goldUser._id,
+      membershipPlan: goldPlan._id,
+      tier: 'gold',
+      status: 'active',
+      startDate: start,
+      endDate: end,
+      amountPaid: goldPlan.price,
+      paymentMethod: 'online',
+      paymentReference: 'TXN-GOLD-INIT-001',
+      notes: 'Initial Gold membership seeded',
+    });
+    console.log('🎖️  Gold membership created for Arjun Kapoor');
+  }
+
+  const existingTrialMember = await Member.findOne({ userId: trialUser._id });
+  if (!existingTrialMember && trialPlan) {
+    const start = new Date();
+    const end = new Date(start);
+    end.setDate(end.getDate() + 7);
+    await Member.create({
+      userId: trialUser._id,
+      membershipPlan: trialPlan._id,
+      tier: 'trial',
+      status: 'active',
+      startDate: start,
+      endDate: end,
+      amountPaid: 0,
+      paymentMethod: 'free_trial',
+      notes: '7-Day Free trial activated',
+    });
+    console.log('🆓 Free Trial membership created for Neha Saxena');
+  }
+
+  // 5. Sample Trial Session Registration
+  const existingTrial = await Trial.findOne({ email: 'siddharth@example.com' });
+  if (!existingTrial) {
+    await Trial.create({
+      userId: visitorUser._id,
+      name: 'Siddharth Roy',
+      email: 'siddharth@example.com',
+      phone: '9876543212',
+      sport: 'tennis',
+      preferredDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+      preferredTimeSlot: '09:00 AM - 10:00 AM',
+      experienceLevel: 'beginner',
+      status: 'registered',
+      assignedCoach: coachUser._id,
+      feedbackNotes: 'Interested in beginner weekend tennis classes',
+    });
+    console.log('🎾 Trial session booked for visitor Siddharth Roy');
+  }
+
+  // 6. Courts
   const existingCourts = await Court.countDocuments();
   if (existingCourts === 0) {
     await Court.create([
@@ -110,11 +315,11 @@ const seedData = async () => {
     console.log('✅ Courts seeded');
   }
 
-  // 3. Shop Categories & Products
+  // 7. Shop Categories & Products
   const existingCats = await Category.countDocuments();
   if (existingCats === 0) {
     const racketsCat = await Category.create({ name: 'Rackets', slug: 'rackets', description: 'Tennis and badminton rackets' });
-    const ballsCat = await Category.create({ name: 'Balls & Equipment', slug: 'balls-equipment', description: 'Match balls, shuttlecocks, and training accessories' });
+    const ballsCat = await Category.create({ name: 'Balls & Equipment', slug: 'balls-equipment', description: 'Match balls, shuttlecocks, and accessories' });
     const apparelCat = await Category.create({ name: 'Apparel & Shoes', slug: 'apparel-shoes', description: 'Sports jerseys, shorts, and court shoes' });
 
     await Product.create([
@@ -170,7 +375,7 @@ const seedData = async () => {
     console.log('✅ Categories and Products seeded');
   }
 
-  // 4. Cafeteria Tables & Menu
+  // 8. Cafeteria Tables & Menu
   const existingTables = await Table.countDocuments();
   if (existingTables === 0) {
     await Table.create([

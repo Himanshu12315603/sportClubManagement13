@@ -46,19 +46,20 @@ export function Checkbox({ label, checked, onChange, hint }) {
           width: 20,
           height: 20,
           borderRadius: 6,
-          border: `1px solid ${checked ? 'var(--electric)' : 'var(--border)'}`,
-          background: checked ? 'rgba(0,163,255,0.18)' : '#0e1420',
+          border: `1.5px solid ${checked ? '#16a085' : '#cbd5e1'}`,
+          background: checked ? '#16a085' : '#ffffff',
           display: 'grid',
           placeItems: 'center',
           flex: 'none',
           marginTop: 1,
-          color: '#7dd3fc',
+          color: '#ffffff',
+          transition: 'all 0.18s ease',
         }}
       >
         {checked ? <Icon name="Check" size={13} /> : null}
       </span>
       <span>
-        <span className="small">{label}</span>
+        <span className="small" style={{ color: '#172b4d' }}>{label}</span>
         {hint ? <div className="tiny dim">{hint}</div> : null}
       </span>
     </label>

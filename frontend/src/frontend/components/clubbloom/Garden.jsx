@@ -40,9 +40,22 @@ export default function Garden({ state, compact = false, showRibbon = true }) {
         <div className="cb-row between wrap" style={{ position: 'absolute', top: 14, left: 16, right: 16, zIndex: 2, gap: 10 }}>
           <div className="cb-row" style={{ gap: 10 }}>
             <Badge tone={state.tone.replace('badge-', '')}>{state.statusLabel}</Badge>
-            <span className="tiny dim">Stage {state.stage.level}/5 · {state.stage.label}</span>
+            <span style={{ fontSize: '0.8rem', color: '#172b4d', fontWeight: 600 }}>
+              Stage {state.stage.level}/5 · {state.stage.label}
+            </span>
           </div>
-          <div className="tiny" style={{ color: tone === 'green' ? '#4ade80' : tone === 'gold' ? '#fbbf24' : '#ff8095', fontWeight: 700 }}>
+          <div
+            style={{
+              color: tone === 'green' ? '#15803d' : tone === 'gold' ? '#b45309' : '#b91c1c',
+              fontWeight: 700,
+              fontSize: '0.82rem',
+              background: '#ffffff',
+              padding: '4px 10px',
+              borderRadius: 8,
+              border: '1px solid #cbd5e1',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
+            }}
+          >
             <Icon name="Leaf" size={13} style={{ marginRight: 6, verticalAlign: '-2px' }} />
             {healthLabel} · {health}%
           </div>

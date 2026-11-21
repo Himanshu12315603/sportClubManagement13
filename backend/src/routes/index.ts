@@ -11,6 +11,7 @@ import enquiryRoutes from '../modules/crm/enquiry.routes';
 import paymentRoutes from '../modules/payments/payment.routes';
 import trialRoutes from '../modules/trials/trial.routes';
 import aiRoutes from '../modules/ai/ai.routes';
+import activityRoutes from '../modules/activity/activity.routes';
 
 const router = Router();
 
@@ -26,6 +27,7 @@ router.use('/enquiries', enquiryRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/trials', trialRoutes);
 router.use('/ai', aiRoutes);
+router.use('/activities', activityRoutes);
 
 export default router;
 
@@ -42,4 +44,5 @@ export {
   paymentRoutes,
   trialRoutes,
   aiRoutes,
+  activityRoutes,
 };

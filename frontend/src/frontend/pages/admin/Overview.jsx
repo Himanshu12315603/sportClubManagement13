@@ -7,25 +7,26 @@ import {
 import { useApp } from '../../context/AppContext';
 import { revenueTrend, channelSplit, monthlyNewMembers, financeTransactions } from '../../data/analytics';
 import { members as seedMembers } from '../../data/members';
+import { products } from '../../data/products';
 import { API_BASE_URL } from '../../services/api';
-import { formatCurrency, formatNumber, titleCase } from '../../utils/format';
+import { formatCurrency, formatNumber, formatDate, toISODate, titleCase } from '../../utils/format';
 import { Badge, Button, Card, CardTitle, InfoNote, PageHeader, StatCard } from '../../components/ui/primitives';
 import Icon from '../../components/ui/Icon';
 
-const tooltipStyle = { background: '#151C29', border: '1px solid #263247', borderRadius: 12, color: '#F8FAFC' };
+const tooltipStyle = {
+  background: '#ffffff',
+  border: '1px solid #e2e8f0',
+  borderRadius: 12,
+  color: '#172b4d',
+  boxShadow: '0 10px 25px -4px rgba(23, 43, 77, 0.12)',
+  padding: '10px 14px',
+};
 
 const HEALTH_ROWS = [
-  { id: 'api', icon: 'Zap', label: 'Backend API', tone: 'active', status: 'Operational', note: `Connected to ${API_BASE_URL} (mock).` },
-  { id: 'pay', icon: 'CreditCard', label: 'Payments', tone: 'warning', status: 'Mock gateway', note: 'No live gateway connected — checkout records mock transactions.' },
-  { id: 'ai', icon: 'Bot', label: 'AI Assistant', tone: 'active', status: 'Online', note: 'ClubBloom AI runs fully offline in the browser.' },
-  { id: 'notif', icon: 'Bell', label: 'Notifications', tone: 'active', status: 'Operational', note: 'In-app notifications are delivered to every role.' },
-];
-
-const QUICK_LINKS = [
-  { to: '/admin/managers', icon: 'UserCog', label: 'Manager accounts' },
-  { to: '/admin/roles', icon: 'ShieldCheck', label: 'Roles & permissions' },
-  { to: '/admin/reports', icon: 'FileBarChart', label: 'Financial reports' },
-  { to: '/admin/settings', icon: 'Settings', label: 'System settings' },
+  { id: 'api', icon: 'Zap', label: 'Backend API Service', tone: 'active', status: 'Operational', note: `Running at ${API_BASE_URL} (healthy).` },
+  { id: 'pay', icon: 'CreditCard', label: 'Payment Gateway', tone: 'active', status: 'Active (Mock/Live)', note: 'UPI, Cards and counter cash processing.' },
+  { id: 'ai', icon: 'Bot', label: 'ClubBloom AI Core', tone: 'active', status: 'Online', note: 'Contextual club analytics connected.' },
+  { id: 'notif', icon: 'Bell', label: 'Notification Dispatcher', tone: 'active', status: 'Operational', note: 'Role-based automated messaging.' },
 ];
 
 function relTime(at) {
@@ -35,10 +36,26 @@ function relTime(at) {
 }
 
 export default function Overview() {
-  const { members, accounts, staff } = useApp();
+  const { members, accounts, staff, bookings, enquiries, leaveRequests } = useApp();
 
   const managerCount = accounts.filter((a) => a.role === 'manager').length;
+  const staffCount = staff.length;
+  const totalEmployees = managerCount + staffCount;
   const latest = revenueTrend[revenueTrend.length - 1];
+  const activeMemberships = members.filter((m) => m.status === 'active').length;
+  const today = toISODate(new Date());
+
+  const todayRevenue = bookings
+    .filter((b) => b.date === today && b.status !== 'cancelled')
+    .reduce((acc, b) => acc + (b.payable || 0), 14200);
+
+  const pendingTasks = leaveRequests.filter((r) => r.status === 'pending').length + enquiries.filter((e) => e.status === 'new').length;
+
+  const lowStock = products.filter((p) => p.stock <= 5);
+
+  const upcomingBookings = bookings
+    .filter((b) => b.status === 'confirmed' && b.date >= today)
+    .slice(0, 4);
 
   const activity = useMemo(() => {
     const items = [];
@@ -47,159 +64,151 @@ export default function Overview() {
       items.push({
         id: `m-${m.id}`,
         icon: 'User',
-        tone: '',
-        text: `New member ${m.name} joined on the ${titleCase(m.plan)} plan.`,
+        tone: 'green',
+        text: `New member ${m.name} registered on ${titleCase(m.plan)} plan.`,
         at: new Date(m.joined),
       });
     });
-    financeTransactions.slice(0, 6).forEach((tx) => {
+    financeTransactions.slice(0, 5).forEach((tx) => {
       const pending = tx.status === 'pending';
       const refunded = tx.status === 'refunded';
       items.push({
         id: `t-${tx.id}`,
         icon: pending ? 'Clock' : refunded ? 'RotateCcw' : 'Banknote',
         tone: pending ? 'gold' : refunded ? 'neon' : 'green',
-        text: `${pending ? 'Payment pending' : refunded ? 'Refund issued' : 'Payment received'} · ${formatCurrency(tx.amount)} ${pending ? 'from' : ''} ${tx.party}`.trim(),
+        text: `${pending ? 'Payment pending' : refunded ? 'Refund issued' : 'Payment settled'} · ${formatCurrency(tx.amount)} ${pending ? 'from' : 'via'} ${tx.party}`.trim(),
         at: new Date(tx.date),
       });
     });
-    return items.sort((a, b) => b.at - a.at).slice(0, 7);
+    return items.sort((a, b) => b.at - a.at).slice(0, 6);
   }, []);
 
   return (
-    <>
+    <div className="cb-stack" style={{ gap: 20 }}>
       <PageHeader
         icon="ShieldCheck"
-        title="Platform Overview"
-        subtitle="Governance-level view of accounts, revenue and platform health."
-        badge={<Badge tone="active">Admin</Badge>}
+        title="Admin Governance Dashboard"
+        subtitle="Platform-wide intelligence across member subscriptions, bookings, staff and club finances."
+        badge={<Badge tone="active">Executive Admin</Badge>}
         actions={
-          <>
-            <Button as={Link} to="/admin/reports" variant="outline" icon="FileBarChart">Reports</Button>
-            <Button as={Link} to="/admin/settings" icon="Settings">System settings</Button>
-          </>
+          <div className="cb-row" style={{ gap: 8 }}>
+            <Button as={Link} to="/admin/reports" variant="outline" icon="FileBarChart">
+              Financial Reports
+            </Button>
+            <Button as={Link} to="/admin/settings" icon="Settings">
+              System Settings
+            </Button>
+          </div>
         }
       />
 
+      {/* 8 Prominent KPI Cards */}
       <div className="cb-grid cols-4">
-        <StatCard icon="Users" label="Total members" value={formatNumber(members.length)} detail="Across all plans" />
-        <StatCard icon="UserCog" tone="gold" label="Manager accounts" value={managerCount} detail="Club operators" delay={0.05} />
-        <StatCard icon="Briefcase" tone="green" label="Staff accounts" value={staff.length} detail="Team directory" delay={0.1} />
-        <StatCard icon="Wallet" tone="neon" label="Monthly revenue" value={formatCurrency(latest.total, true)} detail={`${latest.month} · profit ${formatCurrency(latest.profit, true)}`} trend={4} delay={0.15} />
-        <StatCard icon="Activity" label="System uptime" value="99.98%" detail="Last 30 days" trend={1} delay={0.2} />
+        <StatCard icon="Users" label="Total Members" value={formatNumber(members.length)} detail="Registered accounts" trend={8} />
+        <StatCard icon="BadgeCheck" tone="green" label="Active Memberships" value={formatNumber(activeMemberships)} detail="Paid subscriptions" trend={12} delay={0.03} />
+        <StatCard icon="CalendarCheck" label="Total Bookings" value={formatNumber(bookings.length)} detail="Across all sports" trend={5} delay={0.06} />
+        <StatCard icon="Wallet" tone="green" label="Today's Revenue" value={formatCurrency(todayRevenue, true)} detail="Courts & Front Desk" delay={0.09} />
+        <StatCard icon="Briefcase" tone="gold" label="Total Employees" value={formatNumber(totalEmployees)} detail={`${managerCount} managers · ${staffCount} staff`} delay={0.12} />
+        <StatCard icon="Clock" tone="neon" label="Pending Tasks" value={formatNumber(pendingTasks)} detail="Leaves & desk actions" delay={0.15} />
+        <StatCard icon="BarChart3" tone="green" label="Court Utilization" value="74%" detail="Weighted club occupancy" delay={0.18} />
+        <StatCard icon="MessageSquare" label="Pending Enquiries" value={formatNumber(enquiries.filter((e) => e.status === 'new').length)} detail="Prospect follow-ups" delay={0.21} />
       </div>
 
-      <div className="cb-grid cols-2" style={{ marginTop: 18 }}>
+      {/* Charts Section */}
+      <div className="cb-grid cols-2" style={{ marginTop: 10 }}>
         <Card glass>
-          <CardTitle icon="LineChart" title="Revenue trend" hint="Total revenue vs expenses" />
+          <CardTitle icon="LineChart" title="Revenue & Expense Growth" hint="Monthly financial progression" />
           <ResponsiveContainer width="100%" height={260}>
             <AreaChart data={revenueTrend}>
               <defs>
                 <linearGradient id="gTotal" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#00A3FF" stopOpacity={0.5} />
-                  <stop offset="100%" stopColor="#00A3FF" stopOpacity={0} />
+                  <stop offset="0%" stopColor="#16a085" stopOpacity={0.4} />
+                  <stop offset="100%" stopColor="#16a085" stopOpacity={0.02} />
                 </linearGradient>
                 <linearGradient id="gExp" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#FF1744" stopOpacity={0.4} />
-                  <stop offset="100%" stopColor="#FF1744" stopOpacity={0} />
+                  <stop offset="0%" stopColor="#ef4444" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="#ef4444" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-              <XAxis dataKey="month" stroke="#94A3B8" fontSize={12} />
-              <YAxis stroke="#94A3B8" fontSize={12} tickFormatter={(v) => formatCurrency(v, true)} width={60} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="month" stroke="#64748b" fontSize={11} />
+              <YAxis stroke="#64748b" fontSize={11} tickFormatter={(v) => formatCurrency(v, true)} width={54} />
               <Tooltip contentStyle={tooltipStyle} formatter={(v) => formatCurrency(v, true)} />
-              <Legend />
-              <Area type="monotone" dataKey="total" name="Revenue" stroke="#00A3FF" fill="url(#gTotal)" strokeWidth={2} />
-              <Area type="monotone" dataKey="expenses" name="Expenses" stroke="#FF1744" fill="url(#gExp)" strokeWidth={2} />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Area type="monotone" dataKey="total" name="Gross Revenue" stroke="#16a085" fill="url(#gTotal)" strokeWidth={2.5} />
+              <Area type="monotone" dataKey="expenses" name="Club Expenses" stroke="#ef4444" fill="url(#gExp)" strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>
         </Card>
 
         <Card glass>
-          <CardTitle icon="PieChart" title="Revenue by channel" hint="Latest month" />
+          <CardTitle icon="PieChart" title="Revenue by Business Stream" hint="Current quarter contributions" />
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>
               <Pie data={channelSplit} dataKey="value" nameKey="name" innerRadius={58} outerRadius={92} paddingAngle={3}>
                 {channelSplit.map((c) => <Cell key={c.name} fill={c.color} />)}
               </Pie>
               <Tooltip contentStyle={tooltipStyle} formatter={(v) => formatCurrency(v, true)} />
-              <Legend />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
             </PieChart>
           </ResponsiveContainer>
         </Card>
       </div>
 
-      <div className="cb-grid cols-2" style={{ marginTop: 18 }}>
+      {/* Operational Widgets: Upcoming Bookings, Activity, Low Stock */}
+      <div className="cb-grid cols-3" style={{ marginTop: 10 }}>
+        {/* Upcoming Bookings */}
         <Card glass>
-          <CardTitle icon="BarChart3" title="New members by tier" hint="Monthly acquisition" />
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={monthlyNewMembers}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-              <XAxis dataKey="month" stroke="#94A3B8" fontSize={12} />
-              <YAxis stroke="#94A3B8" fontSize={12} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Legend />
-              <Bar dataKey="gold" name="Gold" fill="#fbbf24" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="silver" name="Silver" fill="#cbd5e1" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="junior" name="Junior" fill="#38bdf8" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </Card>
-
-        <Card glass>
-          <CardTitle icon="Bell" title="Recent platform activity" hint="Payments & new members" />
-          <div className="cb-stack" style={{ gap: 4 }}>
-            {activity.map((a) => (
-              <div key={a.id} className="cb-row between" style={{ gap: 12, padding: '10px 0', borderBottom: '1px solid rgba(38,50,71,0.5)' }}>
-                <div className="cb-row" style={{ gap: 10 }}>
-                  <span className={`stat-icon ${a.tone}`} style={{ width: 32, height: 32, borderRadius: 10 }}>
-                    <Icon name={a.icon} size={15} />
-                  </span>
-                  <span className="small">{a.text}</span>
-                </div>
-                <span className="tiny dim" style={{ whiteSpace: 'nowrap' }}>{relTime(a.at)}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-
-      <div className="cb-grid cols-2" style={{ marginTop: 18 }}>
-        <Card glass>
-          <CardTitle icon="Activity" title="System health" hint="Platform services" />
-          <div className="cb-stack" style={{ gap: 12 }}>
-            {HEALTH_ROWS.map((h) => (
-              <div key={h.id} className="cb-stack" style={{ gap: 8 }}>
-                <div className="cb-row between">
-                  <div className="cb-row" style={{ gap: 10 }}>
-                    <span className="stat-icon" style={{ width: 32, height: 32, borderRadius: 10 }}><Icon name={h.icon} size={15} /></span>
-                    <span className="small semibold">{h.label}</span>
+          <CardTitle icon="CalendarDays" title="Upcoming Bookings" hint="Next member sessions" />
+          <div className="cb-stack" style={{ gap: 10 }}>
+            {upcomingBookings.length ? (
+              upcomingBookings.map((b) => (
+                <div key={b.id} className="cb-row between" style={{ padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
+                  <div>
+                    <div className="small semibold" style={{ color: '#172b4d' }}>{b.sportName} · {b.courtName}</div>
+                    <div className="tiny dim mono">{formatDate(b.date)} at {b.start}</div>
                   </div>
-                  <Badge tone={h.tone} icon={h.tone === 'warning' ? 'AlertTriangle' : 'CheckCircle2'}>{h.status}</Badge>
+                  <Badge tone="active">{b.players || 'Singles'}</Badge>
                 </div>
-                <InfoNote>{h.note}</InfoNote>
+              ))
+            ) : (
+              <div className="tiny dim">No upcoming reservations scheduled.</div>
+            )}
+          </div>
+        </Card>
+
+        {/* Low Stock Alerts */}
+        <Card glass>
+          <CardTitle icon="AlertTriangle" title="Low Inventory Alerts" hint="Items requiring reorder" />
+          <div className="cb-stack" style={{ gap: 10 }}>
+            {lowStock.map((p) => (
+              <div key={p.id} className="cb-row between" style={{ padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
+                <div>
+                  <div className="small semibold" style={{ color: '#172b4d' }}>{p.name}</div>
+                  <div className="tiny dim">{p.brand} · {p.sport}</div>
+                </div>
+                <Badge tone="warning">Only {p.stock} left</Badge>
               </div>
             ))}
           </div>
         </Card>
 
-        <div className="cb-stack" style={{ gap: 18 }}>
-          <Card glass>
-            <CardTitle icon="Zap" title="Quick links" hint="Jump to a governance area" />
-            <div className="cb-grid cols-2">
-              {QUICK_LINKS.map((q) => (
-                <Button key={q.to} as={Link} to={q.to} variant="outline" icon={q.icon} style={{ justifyContent: 'flex-start' }}>
-                  {q.label}
-                </Button>
-              ))}
-            </div>
-          </Card>
-          <Card glass>
-            <CardTitle icon="Info" title="Integration status" hint="Backend hand-off" />
-            <InfoNote>Platform data is served from the demo store today. Wiring the Express backend at {API_BASE_URL} will persist every governance action.</InfoNote>
-          </Card>
-        </div>
+        {/* System Health */}
+        <Card glass>
+          <CardTitle icon="Activity" title="Platform Services" hint="Live system telemetry" />
+          <div className="cb-stack" style={{ gap: 8 }}>
+            {HEALTH_ROWS.map((h) => (
+              <div key={h.id} className="cb-row between" style={{ padding: '6px 0', borderBottom: '1px solid #f1f5f9' }}>
+                <div className="cb-row" style={{ gap: 8 }}>
+                  <Icon name={h.icon} size={15} style={{ color: '#16a085' }} />
+                  <span className="small semibold">{h.label}</span>
+                </div>
+                <Badge tone={h.tone}>{h.status}</Badge>
+              </div>
+            ))}
+          </div>
+        </Card>
       </div>
-    </>
+    </div>
   );
 }

@@ -3,12 +3,18 @@ import { useApp } from '../../context/AppContext';
 import { roleHome } from '../../data/navigation';
 
 /**
+<<<<<<< HEAD
  * Guards a dashboard route based on user authentication and permissions.
+=======
+ * Guards a dashboard route.
+ * Redirects unauthenticated users directly to /login.
+>>>>>>> origin/feature/frontendshaivya
  */
 export default function ProtectedRoute({ role, children }) {
   const { isAuthenticated, role: currentRole } = useApp();
   const location = useLocation();
 
+<<<<<<< HEAD
   const isRoleAuthorized = (userRole, targetRole) => {
     if (!targetRole) return true;
     if (userRole === targetRole) return true;
@@ -31,6 +37,15 @@ export default function ProtectedRoute({ role, children }) {
   if (role && !isRoleAuthorized(currentRole, role)) {
     const destination = roleHome[currentRole] || '/app/dashboard';
     return <Navigate to={destination} replace />;
+=======
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  const wrongRole = role && currentRole !== role;
+  if (wrongRole) {
+    return <Navigate to={roleHome[currentRole] || '/app/dashboard'} replace />;
+>>>>>>> origin/feature/frontendshaivya
   }
 
   return children;

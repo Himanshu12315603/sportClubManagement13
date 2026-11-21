@@ -57,6 +57,11 @@ export const getMyMembership = asyncHandler(async (req: Request, res: Response, 
   sendSuccess(res, { member }, member ? 'Membership found' : 'No active membership');
 });
 
+export const subscribeMembership = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+  const member = await memberService.subscribeMembership(req.user!._id.toString(), req.body);
+  sendCreated(res, { member }, 'Membership successfully activated!');
+});
+
 export const updateMember = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
   const validated = updateMemberSchema.parse({ body: req.body });
   const member = await memberService.updateMember(getParam(req), validated.body);

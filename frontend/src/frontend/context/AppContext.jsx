@@ -17,7 +17,7 @@ import { staff as seedStaff, leaveRequests as seedLeave } from '../data/staff';
 import { BOOKING_RULES, blockedSlots, sportById, priceForSlot, validateBooking, courtById } from '../data/courts';
 import { getMembershipStatus, planDurationDays, getGardenState } from '../utils/membership';
 import { addDays, toISODate } from '../utils/format';
-import { readStore, writeStore } from '../utils/storage';
+import { readStore, writeStore, clearStore } from '../utils/storage';
 
 const AppContext = createContext(null);
 
@@ -199,6 +199,7 @@ export function AppProvider({ children }) {
   /* --------------------------------- auth -------------------------------- */
 
   const login = useCallback(
+<<<<<<< HEAD
     async (email, password) => {
       try {
         const response = await api.login(email, password);
@@ -209,6 +210,22 @@ export function AppProvider({ children }) {
       } catch (error) {
         return { ok: false, error: error.message || 'Login failed. Please check your credentials.' };
       }
+=======
+    (email, password) => {
+      const cleaned = String(email).trim().toLowerCase();
+      const account = demoAccounts.find(
+        (a) =>
+          a.email.toLowerCase() === cleaned ||
+          (a.role === 'staff' && (cleaned === 'staff@clubbloom.in' || cleaned === 'staff')) ||
+          (a.role === 'admin' && (cleaned === 'admin@clubbloom.in' || cleaned === 'admin')) ||
+          (a.role === 'manager' && (cleaned === 'manager@clubbloom.in' || cleaned === 'manager'))
+      );
+      if (!account) return { ok: false, error: 'No ClubBloom account found for that email.' };
+      if (account.password !== password) return { ok: false, error: 'Incorrect password. Please try again.' };
+      setUser(account);
+      toast(`Welcome back, ${account.name.split(' ')[0]}`, `Signed in as ${account.title}.`, 'success');
+      return { ok: true, account };
+>>>>>>> origin/feature/frontendshaivya
     },
     [toast]
   );
@@ -247,8 +264,10 @@ export function AppProvider({ children }) {
       console.error('Logout error:', error);
     }
     setUser(null);
+    clearStore(AUTH_KEY);
     setCart({ items: [], channel: 'shop' });
-  }, []);
+    toast('Signed out', 'You have been signed out successfully.', 'info');
+  }, [toast]);
 
   /* ------------------------------- bookings ------------------------------ */
 
@@ -323,6 +342,16 @@ export function AppProvider({ children }) {
       return { ok: true };
     },
     [bookings, toast, pushNotification]
+  );
+
+  const updateBookingStatus = useCallback(
+    (id, status, notes = '') => {
+      setBookings((prev) => prev.map((b) => (b.id === id ? { ...b, status, notes: notes || b.notes } : b)));
+      const label = status === 'completed' ? 'Session Completed' : status === 'confirmed' ? 'Reservation Confirmed' : 'Booking Updated';
+      toast(label, `Booking ${id} is now ${status}.`, 'success');
+      return { ok: true };
+    },
+    [toast]
   );
 
   /* ------------------------------ membership ----------------------------- */
@@ -495,7 +524,7 @@ export function AppProvider({ children }) {
 
   const advanceKitchenOrder = useCallback(
     (id) => {
-      const flow = ['received', 'preparing', 'ready', 'served'];
+      const flow = ['received', 'preparing', 'ready', 'served', 'completed'];
       setKitchen((prev) =>
         prev.map((o) => {
           if (o.id !== id) return o;
@@ -688,6 +717,7 @@ export function AppProvider({ children }) {
       bookings,
       createBooking,
       cancelBooking,
+      updateBookingStatus,
       shopOrders,
       cafeOrders,
       addToCart,
@@ -741,7 +771,7 @@ export function AppProvider({ children }) {
     [
       user, login, quickLogin, register, logout,
       profile, updateProfile, membership, membershipStatus, renewMembership, gardenState, payments,
-      bookings, createBooking, cancelBooking, shopOrders, cafeOrders,
+      bookings, createBooking, cancelBooking, updateBookingStatus, shopOrders, cafeOrders,
       addToCart, setCartQty, removeFromCart, clearCart, cart, cartTotals, placeShopOrder, placeCafeOrder,
       notifications, pushNotification, markNotificationRead, markAllNotificationsRead, toasts, toast, dismissToast,
       members, addMember, updateMember, suspendMember, enquiries, updateEnquiry, trials, updateTrial,

@@ -214,4 +214,4 @@ export const cafeTables = [
   { id: 'T8', label: 'Bar Counter', seats: 3, zone: 'Indoor' },
 ];
 
-export const cafeOrderStatusFlow = ['received', 'preparing', 'ready', 'served'];
+export const cafeOrderStatusFlow = ['received', 'preparing', 'ready', 'served', 'completed'];
