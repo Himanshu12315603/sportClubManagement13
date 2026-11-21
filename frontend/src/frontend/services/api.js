@@ -46,6 +46,17 @@ export const api = {
 
   getAllUsers: () => request('/api/v1/auth/users'),
 
+  getMyActivities: (limit = 50) => request(`/api/v1/activities/my?limit=${limit}`),
+
+  getAllActivities: (filters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.userId) params.append('userId', filters.userId);
+    if (filters.type) params.append('type', filters.type);
+    if (filters.page) params.append('page', filters.page);
+    if (filters.limit) params.append('limit', filters.limit);
+    return request(`/api/v1/activities/all?${params.toString()}`);
+  },
+
   listMembers: () => request('/api/v1/members'),
 
   getMyMembership: () => request('/api/v1/members/my-membership'),
@@ -60,10 +71,32 @@ export const api = {
 
   listBookings: () => request('/api/v1/bookings'),
 
-  getMyBookings: () => request('/api/v1/bookings/my-bookings'),
+  getMyBookings: () => request('/api/v1/bookings/my'),
 
   createBooking: (payload) =>
     request('/api/v1/bookings', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  placeOrder: (payload) =>
+    request('/api/v1/orders', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  getMyOrders: () => request('/api/v1/orders/my'),
+
+  getAllOrders: () => request('/api/v1/orders'),
+
+  createPaymentOrder: (payload) =>
+    request('/api/v1/payments/create-order', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  verifyPayment: (payload) =>
+    request('/api/v1/payments/verify', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),

@@ -142,6 +142,22 @@ export function AppProvider({ children }) {
     fetchUsers();
   }, [user]);
 
+  // Fetch activities for current user
+  const [activities, setActivities] = useState([]);
+  useEffect(() => {
+    const fetchActivities = async () => {
+      if (user) {
+        try {
+          const response = await api.getMyActivities(20);
+          setActivities(response.data.activities || []);
+        } catch (error) {
+          console.error('Failed to fetch activities:', error);
+        }
+      }
+    };
+    fetchActivities();
+  }, [user]);
+
   /* ------------------------------- toasts ------------------------------- */
 
   const toast = useCallback((title, message = '', type = 'info') => {
