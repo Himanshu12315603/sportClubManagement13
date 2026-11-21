@@ -125,6 +125,24 @@ export default function App() {
             <Route path="ai" element={<ManagerAi />} />
           </Route>
 
+          {/* ------------------------------- Staff ------------------------------ */}
+          <Route
+            path="/staff"
+            element={
+              <ProtectedRoute role="staff">
+                <DashboardLayout variant="staff" />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Navigate to="/staff/bookings" replace />} />
+            <Route path="bookings" element={<ManagerBookings />} />
+            <Route path="courts" element={<ManagerCourts />} />
+            <Route path="cafeteria" element={<ManagerCafeteria />} />
+            <Route path="shop" element={<ManagerShop />} />
+            <Route path="members" element={<ManagerMembers />} />
+            <Route path="trials" element={<ManagerTrials />} />
+          </Route>
+
           {/* ------------------------------- Admin ------------------------------ */}
           <Route
             path="/admin"

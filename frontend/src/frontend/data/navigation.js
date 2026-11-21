@@ -80,6 +80,25 @@ export const adminNav = [
   },
 ];
 
+export const staffNav = [
+  {
+    group: 'Operations',
+    items: [
+      { to: '/staff/bookings', label: 'Court Bookings', icon: 'CalendarDays' },
+      { to: '/staff/courts', label: 'Court Status', icon: 'Map' },
+      { to: '/staff/cafeteria', label: 'Cafeteria Orders', icon: 'Coffee' },
+      { to: '/staff/shop', label: 'Pro Shop Queue', icon: 'ShoppingBag' },
+    ],
+  },
+  {
+    group: 'Front Desk',
+    items: [
+      { to: '/staff/members', label: 'Member Check-in', icon: 'Users' },
+      { to: '/staff/trials', label: 'Trial Visitors', icon: 'ClipboardCheck' },
+    ],
+  },
+];
+
 export const publicNav = [
   { to: '/', label: 'Home' },
   { to: '/facilities', label: 'Facilities' },
@@ -93,4 +112,5 @@ export const roleHome = {
   customer: '/app/dashboard',
   manager: '/manager/overview',
   admin: '/admin/overview',
+  staff: '/staff/bookings',
 };

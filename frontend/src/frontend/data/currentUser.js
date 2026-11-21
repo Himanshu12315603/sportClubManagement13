@@ -41,6 +41,19 @@ export const demoAccounts = [
     avatarSeed: 'AB',
     title: 'Platform Administrator',
   },
+  {
+    id: 'U-4001',
+    role: 'staff',
+    name: 'Simran Kaur',
+    email: 'simran.kaur@clubbloom.in',
+    password: 'clubbloom',
+    phone: '+91 98200 11007',
+    city: 'Mumbai',
+    memberSince: toISODate(addDays(new Date(), -360)),
+    avatarSeed: 'SK',
+    title: 'Operations & Front Desk Staff',
+    dept: 'Retail & Operations',
+  },
 ];
 
 /**

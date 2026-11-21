@@ -14,7 +14,14 @@ import {
 } from '../../data/analytics';
 import { formatCurrency, formatNumber, formatDate, toISODate } from '../../utils/format';
 
-const tooltipStyle = { background: '#151C29', border: '1px solid #263247', borderRadius: 12, color: '#F8FAFC' };
+const tooltipStyle = {
+  background: '#ffffff',
+  border: '1px solid #e2e8f0',
+  borderRadius: 12,
+  color: '#172b4d',
+  boxShadow: '0 10px 25px -4px rgba(23, 43, 77, 0.12)',
+  padding: '10px 14px',
+};
 const statusTone = { confirmed: 'info', completed: 'active', cancelled: 'danger' };
 const statusLabel = { confirmed: 'Confirmed', completed: 'Completed', cancelled: 'Cancelled' };
 
@@ -60,20 +67,20 @@ export default function ManagerOverview() {
             <AreaChart data={revenueTrend} margin={{ top: 6, right: 8, bottom: 0, left: -12 }}>
               <defs>
                 <linearGradient id="ovCourt" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#00a3ff" stopOpacity={0.5} />
-                  <stop offset="100%" stopColor="#00a3ff" stopOpacity={0.05} />
+                  <stop offset="0%" stopColor="#16a085" stopOpacity={0.4} />
+                  <stop offset="100%" stopColor="#16a085" stopOpacity={0.02} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
               <XAxis dataKey="month" stroke="#64748b" tick={{ fontSize: 11 }} />
               <YAxis stroke="#64748b" tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} width={54} />
               <Tooltip contentStyle={tooltipStyle} formatter={(v) => formatCurrency(v)} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Area type="monotone" dataKey="court" stackId="rev" name="Courts" stroke="#00a3ff" fill="url(#ovCourt)" />
+              <Area type="monotone" dataKey="court" stackId="rev" name="Courts" stroke="#16a085" fill="url(#ovCourt)" />
               <Area type="monotone" dataKey="membership" stackId="rev" name="Membership" stroke="#2563eb" fill="#2563eb" fillOpacity={0.22} />
-              <Area type="monotone" dataKey="shop" stackId="rev" name="Shop" stroke="#38bdf8" fill="#38bdf8" fillOpacity={0.22} />
-              <Area type="monotone" dataKey="cafe" stackId="rev" name="Cafe" stroke="#ff1744" fill="#ff1744" fillOpacity={0.22} />
-              <Area type="monotone" dataKey="expenses" name="Expenses" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.1} />
+              <Area type="monotone" dataKey="shop" stackId="rev" name="Shop" stroke="#10b981" fill="#10b981" fillOpacity={0.22} />
+              <Area type="monotone" dataKey="cafe" stackId="rev" name="Cafe" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.22} />
+              <Area type="monotone" dataKey="expenses" name="Expenses" stroke="#ef4444" fill="#ef4444" fillOpacity={0.1} />
             </AreaChart>
           </ResponsiveContainer>
         </Card>

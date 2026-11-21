@@ -1,10 +1,10 @@
 import { NavLink, Link } from 'react-router-dom';
 import Icon from '../ui/Icon';
-import { customerNav, managerNav, adminNav } from '../../data/navigation';
+import { customerNav, managerNav, adminNav, staffNav } from '../../data/navigation';
 import { useApp } from '../../context/AppContext';
 
-const navByVariant = { customer: customerNav, manager: managerNav, admin: adminNav };
-const labelByVariant = { customer: 'Member Area', manager: 'Manager Console', admin: 'Administration' };
+const navByVariant = { customer: customerNav, manager: managerNav, admin: adminNav, staff: staffNav };
+const labelByVariant = { customer: 'Member Area', manager: 'Manager Console', admin: 'Administration', staff: 'Staff Operations' };
 
 /**
  * Authenticated sidebar. Renders the customer, manager or admin navigation.
