@@ -33,9 +33,10 @@ export const getAllActivities = async (filters: {
   if (userId) filter.userId = userId;
   if (type) filter.type = type;
   if (startDate || endDate) {
-    filter.createdAt = {};
-    if (startDate) filter.createdAt.$gte = startDate;
-    if (endDate) filter.createdAt.$lte = endDate;
+    const dateFilter: Record<string, Date> = {};
+    if (startDate) dateFilter.$gte = startDate;
+    if (endDate) dateFilter.$lte = endDate;
+    filter.createdAt = dateFilter;
   }
 
   const skip = (page - 1) * limit;

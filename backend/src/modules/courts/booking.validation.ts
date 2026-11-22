@@ -26,6 +26,12 @@ export const cancelBookingSchema = z.object({
   }),
 });
 
+export const updateBookingStatusSchema = z.object({
+  body: z.object({
+    status: z.enum(['pending', 'confirmed', 'cancelled', 'completed', 'no_show']),
+  }),
+});
+
 export const availabilityQuerySchema = z.object({
   query: z.object({
     courtId: z.string().optional(),

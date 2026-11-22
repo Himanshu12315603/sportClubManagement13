@@ -138,7 +138,10 @@ export const getLeaveRequests = async (employeeId?: string, status?: string) => 
   const filter: Record<string, unknown> = {};
   if (employeeId) filter.employee = employeeId;
   if (status) filter.status = status;
-  return LeaveRequest.find(filter).populate('employee').populate('approvedBy', 'name').sort({ createdAt: -1 });
+  return LeaveRequest.find(filter)
+    .populate({ path: 'employee', populate: { path: 'userId', select: 'name email phone' } })
+    .populate('approvedBy', 'name')
+    .sort({ createdAt: -1 });
 };
 
 export const processLeave = async (id: string, status: 'approved' | 'rejected', approvedById: string, notes?: string) => {

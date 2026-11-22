@@ -12,6 +12,7 @@ import paymentRoutes from '../modules/payments/payment.routes';
 import trialRoutes from '../modules/trials/trial.routes';
 import aiRoutes from '../modules/ai/ai.routes';
 import activityRoutes from '../modules/activity/activity.routes';
+import notificationRoutes from '../modules/notifications/notification.routes';
 
 const router = Router();
 
@@ -28,6 +29,7 @@ router.use('/payments', paymentRoutes);
 router.use('/trials', trialRoutes);
 router.use('/ai', aiRoutes);
 router.use('/activities', activityRoutes);
+router.use('/notifications', notificationRoutes);
 
 export default router;
 
@@ -45,4 +47,5 @@ export {
   trialRoutes,
   aiRoutes,
   activityRoutes,
+  notificationRoutes,
 };

@@ -37,10 +37,9 @@ export const updateTableStatus = asyncHandler(async (req: Request, res: Response
 });
 
 export const createOrder = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
-  const customerId = req.body.customerId || req.user?._id.toString();
   const order = await cafeService.createCafeOrder({
     ...req.body,
-    customerId,
+    customerId: req.user!._id.toString(),
     createdById: req.user!._id.toString(),
   });
   sendCreated(res, { order }, 'Order created');

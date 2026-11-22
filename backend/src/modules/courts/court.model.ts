@@ -1,10 +1,11 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
-export type CourtType = 'tennis' | 'cricket';
+export type CourtType = 'tennis' | 'cricket' | 'badminton' | 'padel';
 export type CourtStatus = 'available' | 'maintenance' | 'closed';
 
 export interface ICourt {
   name: string;
+  code?: string;
   type: CourtType;
   description?: string;
   status: CourtStatus;
@@ -20,7 +21,8 @@ export interface CourtDocument extends ICourt, Document {}
 const courtSchema = new Schema<CourtDocument>(
   {
     name: { type: String, required: true, trim: true, unique: true },
-    type: { type: String, enum: ['tennis', 'cricket'], required: true },
+    code: { type: String, unique: true, sparse: true, trim: true },
+    type: { type: String, enum: ['tennis', 'cricket', 'badminton', 'padel'], required: true },
     description: String,
     status: { type: String, enum: ['available', 'maintenance', 'closed'], default: 'available' },
     memberPrice: { type: Number, required: true, min: 0 },

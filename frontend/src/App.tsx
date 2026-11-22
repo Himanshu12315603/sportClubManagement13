@@ -157,6 +157,7 @@ export default function App() {
             <Route path="managers" element={<AdminManagers />} />
             <Route path="staff" element={<AdminStaff />} />
             <Route path="roles" element={<AdminRoles />} />
+            <Route path="members" element={<ManagerMembers />} />
             <Route path="reports" element={<AdminReports />} />
             <Route path="audit" element={<AdminAudit />} />
             <Route path="settings" element={<AdminSettings />} />

@@ -2,7 +2,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 
 export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'ready' | 'dispatched' | 'delivered' | 'cancelled' | 'returned';
 export type OrderType = 'online' | 'in_store' | 'click_and_collect';
-export type PaymentStatus = 'pending' | 'paid' | 'refunded';
+export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
 
 export interface IOrderItem {
   product: mongoose.Types.ObjectId;
@@ -20,6 +20,7 @@ export interface IOrder {
   items: IOrderItem[];
   subtotal: number;
   discountTotal: number;
+  deliveryFee: number;
   total: number;
   status: OrderStatus;
   orderType: OrderType;
@@ -54,6 +55,7 @@ const orderSchema = new Schema<OrderDocument>(
     ],
     subtotal: { type: Number, required: true },
     discountTotal: { type: Number, default: 0 },
+    deliveryFee: { type: Number, min: 0, default: 0 },
     total: { type: Number, required: true },
     status: {
       type: String,
@@ -61,7 +63,7 @@ const orderSchema = new Schema<OrderDocument>(
       default: 'pending',
     },
     orderType: { type: String, enum: ['online', 'in_store', 'click_and_collect'], required: true },
-    paymentStatus: { type: String, enum: ['pending', 'paid', 'refunded'], default: 'pending' },
+    paymentStatus: { type: String, enum: ['pending', 'paid', 'failed', 'refunded'], default: 'pending' },
     paymentMethod: String,
     paymentReference: String,
     deliveryAddress: {

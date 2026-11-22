@@ -113,14 +113,14 @@ export default function Bookings() {
     setConfirmModalOpen(true);
   };
 
-  const confirmReservation = () => {
+  const confirmReservation = async () => {
     setErrors([]);
     if (!start) {
       setErrors(['Please choose an available start time.']);
       return;
     }
     const end = selectedSlot?.end || '';
-    const res = createBooking({
+    const res = await createBooking({
       sportId,
       courtId,
       date,

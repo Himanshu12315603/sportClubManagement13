@@ -10,20 +10,21 @@ export default function MembershipCard() {
   const { membership, gardenState, membershipStatus } = useApp();
   const plan = planById(membership?.type);
   const dead = !gardenState.alive;
+  const hasPlan = Boolean(membership);
 
   return (
     <Card glass neon={dead}>
       <CardTitle
         icon="Crown"
         title="My membership"
-        hint={plan ? `${plan.name} plan` : 'Trial membership'}
+        hint={hasPlan ? `${plan?.name || 'Member'} plan` : 'Not a member yet'}
         right={<Badge tone={gardenState.tone.replace('badge-', '')}>{gardenState.statusLabel}</Badge>}
       />
 
-      <KeyValue label="Plan" value={plan?.name || 'Trial'} />
+      <KeyValue label="Plan" value={plan?.name || '—'} />
       <KeyValue label="Started" value={formatDate(membership?.startDate)} />
       <KeyValue label="Expires" value={formatDate(membership?.expiryDate)} />
-      <KeyValue label="Days remaining" value={dead ? 'Expired' : `${gardenState.remainingDays} days`} mono />
+      <KeyValue label="Days remaining" value={hasPlan ? (dead ? 'Expired' : `${gardenState.remainingDays} days`) : 'No active plan'} mono />
       <KeyValue label="Plan value" value={formatCurrency(membership?.pricePaid || 0)} mono />
 
       <div style={{ marginTop: 16 }}>
@@ -44,12 +45,17 @@ export default function MembershipCard() {
       </div>
 
       <div className="cb-row" style={{ gap: 10, marginTop: 18 }}>
-        <Button block icon={dead ? 'RefreshCw' : 'Repeat'} as={Link} to="/app/membership">
-          {dead ? 'Renew membership' : 'Renew / upgrade'}
+        <Button block icon={hasPlan && !dead ? 'Repeat' : 'Crown'} as={Link} to="/app/membership">
+          {!hasPlan ? 'Choose a plan' : dead ? 'Renew membership' : 'Renew / upgrade'}
         </Button>
       </div>
 
-      {membershipStatus === 'EXPIRING' ? (
+      {!hasPlan ? (
+        <p className="tiny" style={{ marginTop: 12, color: '#fbbf24' }}>
+          <Icon name="Crown" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />
+          You don&apos;t have a membership yet — join a plan to book courts and shop at member prices.
+        </p>
+      ) : membershipStatus === 'EXPIRING' ? (
         <p className="tiny" style={{ marginTop: 12, color: '#fbbf24' }}>
           <Icon name="AlertTriangle" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />
           Renew within {gardenState.remainingDays} days to keep your priority booking window and garden health.

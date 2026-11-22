@@ -14,6 +14,7 @@ import { useDebounced } from '../../hooks/useUi';
 const planBadge = { gold: 'gold', silver: 'silver', junior: 'junior', trial: 'info' };
 const planLabel = { gold: 'Gold', silver: 'Silver', junior: 'Junior', trial: 'Trial' };
 const emptyForm = { name: '', email: '', phone: '', plan: 'gold', age: '25', city: '' };
+const memberStatusLabel = (member) => member.memberStatus || (member.suspended ? 'suspended' : 'active');
 
 function expiryTone(days) {
   if (days < 0) return 'danger';
@@ -110,7 +111,15 @@ export default function ManagerMembers() {
     },
     { key: 'sessions', label: 'Sessions', align: 'center', render: (m) => <span className="small mono">{m.sessionsThisMonth}</span> },
     { key: 'spent', label: 'Spent', align: 'right', render: (m) => <span className="small mono semibold">{formatCurrency(m.totalSpent, true)}</span> },
-    { key: 'status', label: 'Status', render: (m) => <Badge tone={m.suspended ? 'danger' : 'active'}>{m.suspended ? 'Suspended' : 'Active'}</Badge> },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (m) => {
+        const status = memberStatusLabel(m);
+        const tone = status === 'active' ? 'active' : status === 'suspended' ? 'danger' : 'warning';
+        return <Badge tone={tone}>{status.charAt(0).toUpperCase() + status.slice(1)}</Badge>;
+      },
+    },
     { key: 'actions', label: '', align: 'right', render: (m) => <Button size="sm" variant="ghost" icon="Eye" onClick={() => setSelectedId(m.id)}>View</Button> },
   ];
 
@@ -126,7 +135,7 @@ export default function ManagerMembers() {
 
       <div className="cb-grid cols-4">
         <StatCard icon="Users" label="Members" value={members.length} detail="All plans" />
-        <StatCard icon="BadgeCheck" tone="green" label="Active" value={members.filter((m) => !m.suspended).length} detail="Not suspended" delay={0.05} />
+        <StatCard icon="BadgeCheck" tone="green" label="Active" value={members.filter((m) => memberStatusLabel(m) === 'active').length} detail="Active memberships" delay={0.05} />
         <StatCard icon="AlertTriangle" tone="gold" label="Expiring ≤30d" value={members.filter((m) => { const d = daysLeft(m.expiryDate); return d >= 0 && d <= 30; }).length} detail="Needs a renewal nudge" delay={0.1} />
         <StatCard icon="CalendarX" tone="neon" label="Expired" value={members.filter((m) => daysLeft(m.expiryDate) < 0).length} detail="Lapsed memberships" delay={0.15} />
       </div>

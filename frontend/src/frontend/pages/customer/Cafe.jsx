@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { cafeCategories, cafeMenu, cafeTables, cafeOrderStatusFlow } from '../../data/cafeMenu';
+import { cafeCategories, cafeTables, cafeOrderStatusFlow } from '../../data/cafeMenu';
 import { planById } from '../../data/membershipPlans';
 import { useDebounced } from '../../hooks/useUi';
 import { formatCurrency, formatDate } from '../../utils/format';
@@ -9,12 +9,17 @@ import CartPanel from '../../components/shop/CartPanel';
 import { Badge, Card, CardTitle, EmptyState, PageHeader, Tabs } from '../../components/ui/primitives';
 import { SearchInput } from '../../components/ui/form';
 import Icon from '../../components/ui/Icon';
+import RazorpayModal from '../../components/ui/RazorpayModal';
 
 export default function Cafe() {
-  const { cart, cartTotals, addToCart, setCartQty, removeFromCart, placeCafeOrder, cafeOrders, membership } = useApp();
+  const {
+    cart, cartTotals, addToCart, setCartQty, removeFromCart, placeCafeOrder,
+    completePaidPurchase, cafeOrders, cafeMenuList, membership, toast,
+  } = useApp();
   const [tab, setTab] = useState('menu');
   const [category, setCategory] = useState('all');
   const [query, setQuery] = useState('');
+  const [checkoutOrder, setCheckoutOrder] = useState(null);
   const debounced = useDebounced(query, 200);
 
   const plan = planById(membership?.type);
@@ -22,15 +27,21 @@ export default function Cafe() {
 
   const filtered = useMemo(() => {
     const q = debounced.trim().toLowerCase();
-    return cafeMenu.filter((m) => {
+    return cafeMenuList.filter((m) => {
       const inCat = category === 'all' || m.category === category;
       const inQuery = !q || `${m.name} ${m.description}`.toLowerCase().includes(q);
       return inCat && inQuery;
     });
-  }, [category, debounced]);
+  }, [cafeMenuList, category, debounced]);
 
   const activeOrder = cafeOrders[0];
   const activeStep = activeOrder ? Math.max(0, cafeOrderStatusFlow.indexOf(activeOrder.status)) : -1;
+
+  const prepareCheckout = async (payload) => {
+    const result = await placeCafeOrder(payload);
+    if (result.ok) setCheckoutOrder(result.order);
+    return result;
+  };
 
   return (
     <>
@@ -84,8 +95,8 @@ export default function Cafe() {
               <Card glass>
                 <EmptyState
                   icon="Search"
-                  title="Nothing on the menu matches"
-                  message="Try another category or clear your search."
+                  title={cafeMenuList.length ? 'Nothing on the menu matches' : 'Menu unavailable'}
+                  message={cafeMenuList.length ? 'Try another category or clear your search.' : 'The cafeteria menu could not be loaded from the club service.'}
                   action={
                     <button className="btn btn-outline btn-sm" type="button" onClick={() => { setQuery(''); setCategory('all'); }}>
                       Reset filters
@@ -103,7 +114,7 @@ export default function Cafe() {
               totals={cart.channel === 'cafe' ? cartTotals : { subtotal: 0, discount: 0, discountPct: 0, total: 0, count: 0 }}
               onQty={setCartQty}
               onRemove={removeFromCart}
-              onPlace={placeCafeOrder}
+              onPlace={prepareCheckout}
               tableOptions={cafeTables}
               title="Your order"
             />
@@ -176,6 +187,20 @@ export default function Cafe() {
           </Card>
         </div>
       )}
+      <RazorpayModal
+        open={Boolean(checkoutOrder)}
+        onClose={() => setCheckoutOrder(null)}
+        onCancel={() => setCheckoutOrder(null)}
+        onError={(message) => toast('Checkout cancelled', message, 'error')}
+        amount={checkoutOrder?.total || 0}
+        purpose="cafeteria"
+        relatedId={checkoutOrder?._id}
+        description={`Cafeteria order ${checkoutOrder?.orderNumber || ''}`}
+        onSuccess={async (result) => {
+          await completePaidPurchase('cafe', result.purchase);
+          setCheckoutOrder(null);
+        }}
+      />
     </>
   );
 }

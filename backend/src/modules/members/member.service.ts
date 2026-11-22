@@ -3,8 +3,10 @@ import { Member, MemberDocument } from './member.model';
 import { MembershipPlan, MembershipPlanDocument } from './membershipPlan.model';
 import { User } from '../auth/auth.model';
 import { Transaction } from '../finance/finance.model';
+import { Payment } from '../payments/payment.model';
+import { createNotification } from '../notifications/notification.service';
 import { AppError, NotFoundError, ConflictError } from '../../utils/AppError';
-import { CreateMemberInput, RenewMembershipInput, UpdateMemberInput } from './member.validation';
+import { CreateMemberInput, CreateMemberDirectInput, RenewMembershipInput, UpdateMemberInput } from './member.validation';
 import { SubscribeMembershipInput } from './member.types';
 
 // ---- Membership Plans ----
@@ -40,24 +42,50 @@ export const deletePlan = async (id: string): Promise<void> => {
  */
 export const subscribeMembership = async (
   userId: string,
-  data: SubscribeMembershipInput
+  data: SubscribeMembershipInput,
+  verifiedPaymentId?: string
 ): Promise<MemberDocument> => {
   const rawPlanId = (data as any).membershipPlanId || (data as any).planId;
-  const { paymentMethod = 'online', paymentReference, notes } = data;
+  const { paymentMethod = 'online', notes } = data;
 
   const user = await User.findById(userId);
   if (!user) throw new NotFoundError('User not found');
-
-  const existing = await Member.findOne({ userId });
-  if (existing && existing.status === 'active') {
-    throw new ConflictError('You already have an active membership. You can renew or upgrade your existing plan.');
-  }
 
   const plan = mongoose.isValidObjectId(rawPlanId)
     ? await MembershipPlan.findById(rawPlanId)
     : await MembershipPlan.findOne({ tier: rawPlanId });
   if (!plan) throw new NotFoundError('Membership plan not found');
   if (!plan.isActive) throw new AppError('This membership plan is currently not available', 400);
+
+  let paymentReference = data.paymentReference;
+  if (plan.price > 0) {
+    if (!verifiedPaymentId) throw new AppError('Complete Razorpay checkout before activating a paid membership', 402);
+    const payment = await Payment.findOne({
+      _id: verifiedPaymentId,
+      user: userId,
+      purpose: 'membership',
+      relatedId: plan._id,
+      status: { $in: ['processing', 'captured'] },
+    });
+    if (!payment || !payment.gatewayPaymentId || !payment.gatewaySignature) {
+      throw new AppError('A verified Razorpay payment is required to activate this membership', 402);
+    }
+    paymentReference = payment.paymentNumber;
+  }
+
+  const existing = await Member.findOne({ userId });
+  if (existing && paymentReference && existing.paymentReference === paymentReference) {
+    return existing.populate([
+      { path: 'userId', select: 'name email phone profileImage' },
+      { path: 'membershipPlan', select: 'name tier price benefits durationMonths durationDays discountPercentage courtBookingDiscount shopDiscount cafeDiscount' },
+    ]);
+  }
+
+  // A member holds exactly one plan: they may renew it, but cannot switch to a different plan while active.
+  const isRenewal = Boolean(existing && existing.status === 'active' && String(existing.membershipPlan) === String(plan._id));
+  if (existing && existing.status === 'active' && !isRenewal) {
+    throw new ConflictError('You cannot switch to another plan while your membership is active. Renew your current plan instead.');
+  }
 
   const start = new Date();
   const end = new Date(start);
@@ -114,6 +142,19 @@ export const subscribeMembership = async (
     });
   }
 
+  // Let the manager desk know about the membership activity.
+  try {
+    await createNotification({
+      audience: 'manager',
+      kind: 'membership_subscribed',
+      title: isRenewal ? 'Membership renewed' : 'New membership',
+      message: `${user.name} ${isRenewal ? 'renewed' : 'subscribed to'} the ${plan.name} plan (₹${plan.price}).`,
+      relatedId: member._id.toString(),
+    });
+  } catch (error) {
+    console.error('Failed to raise membership notification:', error);
+  }
+
   return member.populate([
     { path: 'userId', select: 'name email phone profileImage' },
     { path: 'membershipPlan', select: 'name tier price benefits durationMonths durationDays discountPercentage courtBookingDiscount shopDiscount cafeDiscount' },
@@ -155,6 +196,72 @@ export const createMember = async (data: CreateMemberInput): Promise<MemberDocum
   });
 
   await User.findByIdAndUpdate(userId, { role: 'member' });
+
+  return member.populate([
+    { path: 'userId', select: 'name email phone profileImage' },
+    { path: 'membershipPlan', select: 'name tier price benefits' },
+  ]);
+};
+
+/**
+ * Staff-side member creation: creates the login account (if needed) and the
+ * membership in one step, so managers can onboard walk-in members directly.
+ */
+export const createMemberWithUser = async (data: CreateMemberDirectInput): Promise<MemberDocument> => {
+  const { name, email, phone, tier, amountPaid, paymentMethod } = data;
+
+  let user = await User.findOne({ email });
+  if (user) {
+    const existingMember = await Member.findOne({ userId: user._id });
+    if (existingMember) throw new ConflictError('A membership already exists for this email');
+  } else {
+    user = await User.create({
+      name,
+      email,
+      phone,
+      password: 'Member@12345',
+      role: 'member',
+      isActive: true,
+    });
+  }
+
+  const plan = await MembershipPlan.findOne({ tier });
+  if (!plan) throw new NotFoundError('No membership plan found for this tier');
+
+  const start = new Date();
+  const end = new Date(start);
+  if (plan.durationDays) {
+    end.setDate(end.getDate() + plan.durationDays);
+  } else {
+    end.setMonth(end.getMonth() + plan.durationMonths);
+  }
+
+  const paid = amountPaid ?? plan.price;
+  const method = paymentMethod || (plan.price === 0 ? 'free_trial' : 'online');
+
+  const member = await Member.create({
+    userId: user._id,
+    membershipPlan: plan._id,
+    tier: plan.tier,
+    status: 'active',
+    startDate: start,
+    endDate: end,
+    amountPaid: paid,
+    paymentMethod: method,
+  });
+
+  if (paid > 0) {
+    await Transaction.create({
+      type: 'revenue',
+      source: 'membership',
+      amount: paid,
+      paymentMethod: method === 'free_trial' ? 'online' : method,
+      reference: member.memberId,
+      description: `Membership created by staff: ${plan.name} (${plan.tier.toUpperCase()})`,
+      relatedId: member._id,
+      performedBy: user._id,
+    });
+  }
 
   return member.populate([
     { path: 'userId', select: 'name email phone profileImage' },

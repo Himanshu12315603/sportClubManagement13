@@ -79,7 +79,7 @@ export interface ICafeOrder {
   discount: number;
   total: number;
   status: CafeOrderStatus;
-  paymentStatus: 'pending' | 'paid' | 'refunded';
+  paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
   paymentMethod?: string;
   paymentReference?: string;
   servedBy?: mongoose.Types.ObjectId;
@@ -115,7 +115,7 @@ const cafeOrderSchema = new Schema<CafeOrderDocument>(
       enum: ['created', 'confirmed', 'preparing', 'ready', 'served', 'paid', 'cancelled'],
       default: 'created',
     },
-    paymentStatus: { type: String, enum: ['pending', 'paid', 'refunded'], default: 'pending' },
+    paymentStatus: { type: String, enum: ['pending', 'paid', 'failed', 'refunded'], default: 'pending' },
     paymentMethod: String,
     paymentReference: String,
     servedBy: { type: Schema.Types.ObjectId, ref: 'User' },

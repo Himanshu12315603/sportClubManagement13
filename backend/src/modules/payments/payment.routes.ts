@@ -7,6 +7,7 @@ router.use(requireAuth);
 
 router.post('/create-order', paymentController.createOrder);
 router.post('/verify', paymentController.verify);
+router.post('/cancel', paymentController.cancel);
 router.get('/my', paymentController.getMyPayments);
 router.get('/:id', paymentController.getById);
 

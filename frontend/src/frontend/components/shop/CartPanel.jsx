@@ -20,9 +20,9 @@ export default function CartPanel({
   title = 'Your kit',
 }) {
   const [fulfilment, setFulfilment] = useState('pickup');
-  const [method, setMethod] = useState('upi');
   const [table, setTable] = useState(tableOptions[0]?.id || '');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const deliveryFee = channel === 'shop' ? deliveryOptions.find((o) => o.id === fulfilment)?.fee || 0 : 0;
   const grandTotal = (totals?.total || 0) + deliveryFee;
@@ -40,13 +40,20 @@ export default function CartPanel({
     );
   }
 
-  const submit = () => {
+  const submit = async () => {
     setError('');
-    const res =
-      channel === 'shop'
-        ? onPlace({ fulfilment, paymentMethod: method.toUpperCase(), deliveryFee })
-        : onPlace({ table, paymentMethod: method.toUpperCase() });
-    if (res && !res.ok) setError(res.error || 'Could not place the order.');
+    setSubmitting(true);
+    try {
+      const res =
+        channel === 'shop'
+          ? await onPlace({ fulfilment, deliveryFee })
+          : await onPlace({ table });
+      if (res && !res.ok) setError(res.error || 'Could not place the order.');
+    } catch (err) {
+      setError(err.message || 'Could not place the order.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -98,18 +105,6 @@ export default function CartPanel({
         </Field>
       )}
 
-      <Field label="Payment method">
-        <Select
-          value={method}
-          onChange={(e) => setMethod(e.target.value)}
-          options={[
-            { value: 'upi', label: 'UPI — GPay / PhonePe' },
-            { value: 'card', label: 'Card' },
-            { value: 'cash', label: 'Cash' },
-          ]}
-        />
-      </Field>
-
       <hr className="cb-hairline" />
       <KeyValue label="Subtotal" value={formatCurrency(totals.subtotal)} mono />
       <KeyValue label={`Member discount (${totals.discountPct}%)`} value={`− ${formatCurrency(totals.discount)}`} />
@@ -121,12 +116,12 @@ export default function CartPanel({
 
       {error ? <p className="tiny text-neon" style={{ marginTop: 10 }}>{error}</p> : null}
 
-      <Button icon="Check" block style={{ marginTop: 16 }} onClick={submit}>
-        {channel === 'shop' ? 'Place order' : 'Send to kitchen'}
+      <Button icon="Lock" block style={{ marginTop: 16 }} onClick={submit} disabled={submitting}>
+        {submitting ? 'Preparing checkout…' : channel === 'shop' ? 'Pay and place order' : 'Pay and send to kitchen'}
       </Button>
       <p className="tiny dim" style={{ marginTop: 10, textAlign: 'center' }}>
         <Icon name="Lock" size={12} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-        Secure demo checkout · no real payment is taken
+        Razorpay Test Mode checkout · payment is verified before fulfillment
       </p>
     </Card>
   );

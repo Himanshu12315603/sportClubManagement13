@@ -6,6 +6,7 @@ import * as bookingService from './booking.service';
 import {
   createBookingSchema,
   cancelBookingSchema,
+  updateBookingStatusSchema,
   availabilityQuerySchema,
   bookingQuerySchema,
 } from './booking.validation';
@@ -77,4 +78,10 @@ export const markBookingPaid = asyncHandler(async (req: Request, res: Response, 
   const { paymentMethod, paymentReference } = req.body as { paymentMethod: string; paymentReference?: string };
   const booking = await bookingService.markBookingPaid(getParam(req), paymentMethod, paymentReference);
   sendSuccess(res, { booking }, 'Booking marked as paid');
+});
+
+export const updateBookingStatus = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+  const validated = updateBookingStatusSchema.parse({ body: req.body });
+  const booking = await bookingService.updateBookingStatus(getParam(req), validated.body.status);
+  sendSuccess(res, { booking }, 'Booking status updated');
 });

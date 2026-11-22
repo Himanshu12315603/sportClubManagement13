@@ -5,6 +5,7 @@ import { getParam } from '../../utils/params';
 import * as memberService from './member.service';
 import {
   createMemberSchema,
+  createMemberDirectSchema,
   renewMembershipSchema,
   updateMemberSchema,
   memberQuerySchema,
@@ -38,6 +39,12 @@ export const deletePlan = asyncHandler(async (req: Request, res: Response, _next
 export const createMember = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
   const validated = createMemberSchema.parse({ body: req.body });
   const member = await memberService.createMember(validated.body);
+  sendCreated(res, { member }, 'Member registered successfully');
+});
+
+export const createMemberDirect = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+  const validated = createMemberDirectSchema.parse({ body: req.body });
+  const member = await memberService.createMemberWithUser(validated.body);
   sendCreated(res, { member }, 'Member registered successfully');
 });
 

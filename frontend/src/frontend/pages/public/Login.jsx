@@ -11,6 +11,11 @@ const perks = [
   { icon: 'Percent', title: 'Member Club Pricing', text: 'Exclusive 20% savings on pro shop gear, cafe and courts.' },
 ];
 
+const devStaffAccounts = [
+  { role: 'Admin', email: 'admin@championsclub.com', password: 'Admin@12345' },
+  { role: 'Manager', email: 'manager@championsclub.com', password: 'Manager@12345' },
+];
+
 export default function Login() {
   const { login } = useApp();
   const navigate = useNavigate();
@@ -20,30 +25,29 @@ export default function Login() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const handleLogin = (userEmail, userPassword) => {
-    const targetEmail = userEmail || email;
-    const targetPass = userPassword || password;
-
-    if (!targetEmail.trim()) {
+  const handleLogin = async (event) => {
+    event.preventDefault();
+    if (!email.trim()) {
       setError('Please enter your email address.');
       return;
     }
-    if (!targetPass) {
+    if (!password) {
       setError('Please enter your password.');
       return;
     }
 
     setError('');
     setBusy(true);
-    const res = login(targetEmail, targetPass);
-    setBusy(false);
-
-    if (!res.ok) {
-      setError(res.error || 'Invalid email or password. Please try again.');
-      return;
+    try {
+      const res = await login(email, password);
+      if (!res.ok) {
+        setError(res.error || 'Invalid email or password. Please try again.');
+        return;
+      }
+      navigate(roleHome[res.account.role] || '/app/dashboard');
+    } finally {
+      setBusy(false);
     }
-
-    navigate(roleHome[res.account.role] || '/app/dashboard');
   };
 
   return (
@@ -124,8 +128,7 @@ export default function Login() {
           {/* Form */}
           <form
             onSubmit={(e) => {
-              e.preventDefault();
-              handleLogin();
+              handleLogin(e);
             }}
             noValidate
           >
@@ -306,6 +309,33 @@ export default function Login() {
               <span>{busy ? 'Authenticating…' : 'Sign in to Account'}</span>
             </button>
           </form>
+
+          {import.meta.env.DEV && (
+            <div style={{ marginTop: 18, padding: 14, borderRadius: 12, background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#065f46', marginBottom: 8 }}>
+                Development staff logins
+              </div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {devStaffAccounts.map((account) => (
+                  <button
+                    key={account.role}
+                    type="button"
+                    onClick={() => {
+                      setEmail(account.email);
+                      setPassword(account.password);
+                      setError('');
+                    }}
+                    style={{ textAlign: 'left', background: '#ffffff', border: '1px solid #d1fae5', borderRadius: 8, padding: '8px 10px', cursor: 'pointer', color: '#172b4d' }}
+                  >
+                    <span style={{ display: 'block', fontWeight: 700, fontSize: '0.8rem' }}>{account.role}</span>
+                    <span style={{ display: 'block', fontSize: '0.74rem', color: '#475569' }}>
+                      {account.email} · {account.password}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* New to ClubBloom Link */}
           <div style={{ marginTop: 26, paddingTop: 18, borderTop: '1px solid #e2e8f0', textAlign: 'center', fontSize: '0.88rem', color: '#64748b' }}>

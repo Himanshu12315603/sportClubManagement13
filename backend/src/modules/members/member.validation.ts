@@ -12,6 +12,17 @@ export const createMemberSchema = z.object({
   }),
 });
 
+export const createMemberDirectSchema = z.object({
+  body: z.object({
+    name: z.string().min(1, 'Name is required'),
+    email: z.string().email('Valid email is required'),
+    phone: z.string().optional(),
+    tier: z.enum(['gold', 'silver', 'junior', 'trial']),
+    amountPaid: z.number().min(0).optional(),
+    paymentMethod: z.enum(['cash', 'card', 'upi', 'online', 'free_trial']).optional(),
+  }),
+});
+
 export const renewMembershipSchema = z.object({
   body: z.object({
     membershipPlanId: z.string().optional(),
@@ -39,5 +50,6 @@ export const memberQuerySchema = z.object({
 });
 
 export type CreateMemberInput = z.infer<typeof createMemberSchema>['body'];
+export type CreateMemberDirectInput = z.infer<typeof createMemberDirectSchema>['body'];
 export type RenewMembershipInput = z.infer<typeof renewMembershipSchema>['body'];
 export type UpdateMemberInput = z.infer<typeof updateMemberSchema>['body'];

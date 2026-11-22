@@ -6,8 +6,20 @@
 cp .env.example .env
 # Fill in your values in .env
 npm install
+npm run seed
 npm run dev
 ```
+
+The development seed creates these staff logins:
+
+| Role | Email | Password |
+| --- | --- | --- |
+| Admin | `admin@championsclub.com` | `Admin@12345` |
+| Manager | `manager@championsclub.com` | `Manager@12345` |
+
+Change `SEED_ADMIN_PASSWORD` and `SEED_MANAGER_PASSWORD` in `.env` before using these accounts outside local development. Seeding in production requires both values to be explicitly configured.
+
+For payments, put your Razorpay **Test Mode** key ID (`rzp_test_...`) and key secret in `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` in `backend/.env`, then restart the backend. The secret stays on the backend; checkout sends test payment details directly to Razorpay. The app does not simulate or mark a payment successful without Razorpay verification.
 
 ## Available Scripts
 

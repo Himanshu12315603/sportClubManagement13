@@ -16,6 +16,14 @@ export const notificationKinds = {
   low_stock: { tone: 'warning', icon: 'AlertTriangle', title: 'Low stock alert' },
   leave_request: { tone: 'info', icon: 'UserClock', title: 'Staff leave request' },
   garden_milestone: { tone: 'success', icon: 'Sprout', title: 'Garden milestone' },
+
+  // Live notifications raised by the backend for the club/manager desk
+  booking_created: { tone: 'info', icon: 'CalendarPlus', title: 'New court booking' },
+  order_placed: { tone: 'info', icon: 'ShoppingBag', title: 'New shop order' },
+  membership_subscribed: { tone: 'success', icon: 'Crown', title: 'New membership' },
+  trial_registered: { tone: 'info', icon: 'Sparkles', title: 'New trial request' },
+  enquiry_received: { tone: 'info', icon: 'Mail', title: 'New enquiry' },
+  general: { tone: 'info', icon: 'Bell', title: 'Club announcement' },
 };
 
 const t = (offsetDays, hoursAgo) => {

@@ -70,6 +70,10 @@ export const adminNav = [
     ],
   },
   {
+    group: 'Community',
+    items: [{ to: '/admin/members', label: 'Members', icon: 'Users' }],
+  },
+  {
     group: 'Governance',
     items: [
       { to: '/admin/reports', label: 'Financial Reports', icon: 'FileBarChart' },
@@ -117,10 +121,7 @@ export const roleHome = {
   coach: '/manager/overview',
   accountant: '/manager/overview',
   admin: '/admin/overview',
-<<<<<<< HEAD
   super_admin: '/admin/overview',
   owner: '/admin/overview',
-=======
   staff: '/staff/bookings',
->>>>>>> origin/feature/frontendshaivya
 };

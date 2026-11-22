@@ -61,8 +61,15 @@ export const createCafeOrder = async (data: {
 
   const orderItems: ICafeOrderItem[] = [];
   let subtotal = 0;
+  if (!items.length) throw new AppError('At least one menu item is required', 400);
 
   for (const item of items) {
+    if (!Number.isInteger(item.quantity) || item.quantity < 1) {
+      throw new AppError('Menu item quantity must be a positive whole number', 400);
+    }
+    if (!mongoose.isValidObjectId(item.menuItemId)) {
+      throw new NotFoundError(`Menu item ${item.menuItemId} not found`);
+    }
     const menuItem = await MenuItem.findById(item.menuItemId);
     if (!menuItem || !menuItem.isActive || !menuItem.isAvailable) {
       throw new AppError(`Menu item ${item.menuItemId} is not available`, 400);
@@ -90,13 +97,11 @@ export const createCafeOrder = async (data: {
     discount: Math.round(discount * 100) / 100,
     total: Math.round(total * 100) / 100,
     status: 'created',
+    paymentStatus: 'pending',
+    paymentMethod: 'razorpay',
     statusHistory: [{ status: 'created', changedAt: new Date(), changedBy: new mongoose.Types.ObjectId(createdById) }],
     notes,
   });
-
-  if (tableId) {
-    await Table.findByIdAndUpdate(tableId, { status: 'occupied', currentOrder: order._id });
-  }
 
   return order.populate([
     { path: 'table', select: 'tableNumber capacity' },
@@ -113,6 +118,9 @@ export const updateCafeOrderStatus = async (
 ): Promise<CafeOrderDocument> => {
   const order = await CafeOrder.findById(id);
   if (!order) throw new NotFoundError('Order not found');
+  if (order.paymentStatus !== 'paid' && status !== 'cancelled') {
+    throw new AppError('Order must be paid before it can be prepared or served', 409);
+  }
 
   if (!CAFE_STATUS_TRANSITIONS[order.status]?.includes(status)) {
     throw new AppError(`Cannot transition from '${order.status}' to '${status}'`, 400);

@@ -10,6 +10,7 @@ import connectDB from './config/db';
 import { globalErrorHandler } from './middleware/errorHandler';
 import { NotFoundError } from './utils/AppError';
 import apiRouter from './routes';
+import { expirePendingPurchases } from './modules/payments/payment.service';
 
 // Load env
 dotenv.config();
@@ -73,6 +74,12 @@ const PORT = parseInt(process.env.PORT || '5000', 10);
 
 const startServer = async () => {
   await connectDB();
+  const paymentExpiryTimer = setInterval(() => {
+    expirePendingPurchases().catch((error) => {
+      console.error('Failed to expire pending purchases:', error);
+    });
+  }, 5 * 60 * 1000);
+  paymentExpiryTimer.unref();
   app.listen(PORT, () => {
     console.log(`
   ╔══════════════════════════════════════════╗

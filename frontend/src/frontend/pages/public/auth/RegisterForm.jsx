@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import Icon from '../../../components/ui/Icon';
+import { Button } from '../../../components/ui/primitives';
 import { Field, FormRow, Input, Select, validateFields } from '../../../components/ui/form';
 import { useApp } from '../../../context/AppContext';
 
@@ -40,36 +40,21 @@ export default function RegisterForm() {
     }
     setErrors({});
     setBusy(true);
-<<<<<<< HEAD
     const res = await register(values);
     setBusy(false);
     if (!res.ok) {
       setErrors({ form: res.error });
       return;
     }
-=======
-    register(values);
-    setBusy(false);
->>>>>>> origin/feature/frontendshaivya
     navigate('/app/dashboard');
   };
 
   return (
     <form onSubmit={submit} noValidate>
-<<<<<<< HEAD
       {errors.form && <div className="error-text" style={{ marginBottom: 16, padding: 12, background: '#fee2e2', borderRadius: 8 }}>{errors.form}</div>}
 
       <Field label="Full name" required error={errors.name}>
         <Input value={values.name} onChange={set('name')} placeholder="Priya Nair" autoComplete="name" />
-=======
-      <Field label="Full Name" required error={errors.name}>
-        <Input
-          value={values.name}
-          onChange={set('name')}
-          placeholder="e.g. Priya Nair"
-          autoComplete="name"
-        />
->>>>>>> origin/feature/frontendshaivya
       </Field>
 
       <FormRow cols={2}>
@@ -103,19 +88,8 @@ export default function RegisterForm() {
       </Field>
 
       <FormRow cols={2}>
-<<<<<<< HEAD
         <Field label="Password" required error={errors.password} hint="Minimum 8 characters, 1 uppercase, 1 number">
           <Input type="password" value={values.password} onChange={set('password')} placeholder="••••••••" autoComplete="new-password" />
-=======
-        <Field label="Password" required error={errors.password} hint="Minimum 6 characters">
-          <Input
-            type="password"
-            value={values.password}
-            onChange={set('password')}
-            placeholder="••••••••"
-            autoComplete="new-password"
-          />
->>>>>>> origin/feature/frontendshaivya
         </Field>
         <Field label="Confirm Password" required error={errors.confirm}>
           <Input
@@ -164,38 +138,7 @@ export default function RegisterForm() {
         </span>
       </label>
 
-<<<<<<< HEAD
       <Button type="submit" block size="lg" icon="Sparkles" disabled={busy}>{busy ? 'Creating account…' : 'Create my account'}</Button>
-=======
-      {/* Submit Button */}
-      <button
-        type="submit"
-        disabled={busy}
-        style={{
-          width: '100%',
-          height: 48,
-          borderRadius: 12,
-          border: 'none',
-          background: 'linear-gradient(135deg, #16a085 0%, #10b981 100%)',
-          color: '#ffffff',
-          fontSize: '1rem',
-          fontWeight: 700,
-          cursor: busy ? 'not-allowed' : 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 8,
-          boxShadow: '0 6px 18px -2px rgba(22, 160, 133, 0.4)',
-          transition: 'all 0.15s ease',
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-1px)')}
-        onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
-      >
-        <Icon name="Sparkles" size={18} />
-        <span>{busy ? 'Creating Account…' : 'Create My Account'}</span>
-      </button>
->>>>>>> origin/feature/frontendshaivya
-
       {/* Sign-in Link */}
       <div style={{ marginTop: 20, textAlign: 'center', fontSize: '0.88rem', color: '#64748b' }}>
         Already a member?{' '}

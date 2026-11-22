@@ -24,6 +24,12 @@ router.get(
 router.get('/bookings/:id', requireAuth, bookingController.getBookingById);
 router.post('/bookings/:id/cancel', requireAuth, bookingController.cancelBooking);
 router.patch(
+  '/bookings/:id/status',
+  requireAuth,
+  requireRole('super_admin', 'owner', 'manager', 'receptionist'),
+  bookingController.updateBookingStatus
+);
+router.patch(
   '/bookings/:id/pay',
   requireAuth,
   requireRole('super_admin', 'owner', 'manager', 'receptionist', 'accountant'),

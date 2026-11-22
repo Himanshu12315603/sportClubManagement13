@@ -4,6 +4,7 @@ import { Order, OrderDocument } from './order.model';
 import { Member } from '../members/member.model';
 import { MembershipPlan } from '../members/membershipPlan.model';
 import { AppError, NotFoundError, ConflictError } from '../../utils/AppError';
+import { createNotification } from '../notifications/notification.service';
 
 // ---- Categories ----
 export const createCategory = async (data: { name: string; description?: string }) => {
@@ -96,7 +97,8 @@ export const createOrder = async (data: {
   deliveryAddress?: { line1: string; city: string; state: string; pincode: string };
   notes?: string;
 }): Promise<OrderDocument> => {
-  const { customerId, items, orderType, paymentMethod, deliveryAddress, notes } = data;
+  const { customerId, items, orderType, deliveryAddress, notes } = data;
+  if (!items.length) throw new AppError('At least one product is required', 400);
 
   // Get member discount
   const member = await Member.findOne({ userId: customerId });
@@ -110,14 +112,17 @@ export const createOrder = async (data: {
 
   for (const item of items) {
     const rawId = item.productId || (item as any).id;
+    if (!Number.isInteger(item.quantity) || item.quantity < 1) {
+      throw new AppError('Product quantity must be a positive whole number', 400);
+    }
     const product = mongoose.isValidObjectId(rawId)
       ? await Product.findById(rawId)
-      : (await Product.findOne({
+      : await Product.findOne({
           $or: [
             { sku: rawId },
-            { name: new RegExp(String(rawId).replace(/[-_]/g, ' '), 'i') },
+            { name: rawId },
           ],
-        })) || (await Product.findOne({ isActive: true }));
+        });
 
     if (!product) throw new NotFoundError(`Product ${rawId} not found`);
     if (!product.isActive) throw new AppError(`Product "${product.name}" is not available`, 400);
@@ -142,7 +147,8 @@ export const createOrder = async (data: {
     discountTotal += discount * qty;
   }
 
-  const total = subtotal - discountTotal;
+  const deliveryFee = orderType === 'online' ? 149 : 0;
+  const total = subtotal - discountTotal + deliveryFee;
 
   // Create order
   const order = await Order.create({
@@ -150,43 +156,67 @@ export const createOrder = async (data: {
     items: orderItems,
     subtotal: Math.round(subtotal * 100) / 100,
     discountTotal: Math.round(discountTotal * 100) / 100,
+    deliveryFee,
     total: Math.round(total * 100) / 100,
-    status: 'confirmed',
+    status: 'pending',
     orderType: orderType || 'online',
-    paymentStatus: paymentMethod === 'razorpay' || paymentMethod === 'paid' ? 'paid' : 'pending',
-    paymentMethod: paymentMethod || 'razorpay',
+    paymentStatus: 'pending',
+    paymentMethod: 'razorpay',
     deliveryAddress,
     notes,
   });
 
-  // Deduct stock atomically
-  for (const item of orderItems) {
-    const result = await Product.findOneAndUpdate(
-      { _id: item.product, stock: { $gte: item.quantity } },
-      { $inc: { stock: -item.quantity } },
-      { new: true }
-    );
-    if (!result) {
-      // Rollback order
-      await Order.findByIdAndDelete(order._id);
-      throw new ConflictError(`Failed to reserve stock for a product. Please try again.`);
-    }
+  const reservedItems: Array<{ productId: mongoose.Types.ObjectId; quantity: number }> = [];
+  try {
+    for (const item of orderItems) {
+      const result = await Product.findOneAndUpdate(
+        { _id: item.product, stock: { $gte: item.quantity } },
+        { $inc: { stock: -item.quantity } },
+        { new: true }
+      );
+      if (!result) throw new ConflictError('Failed to reserve stock for a product. Please try again.');
 
-    await InventoryTransaction.create({
-      product: item.productId,
-      type: 'sale',
-      quantity: -item.quantity,
-      previousStock: result.stock + item.quantity,
-      newStock: result.stock,
-      reference: order.orderNumber,
-      performedBy: customerId,
-    });
+      reservedItems.push({ productId: item.product, quantity: item.quantity });
+      await InventoryTransaction.create({
+        product: item.product,
+        type: 'sale',
+        quantity: -item.quantity,
+        previousStock: result.stock + item.quantity,
+        newStock: result.stock,
+        reference: order.orderNumber,
+        performedBy: customerId,
+      });
+    }
+  } catch (error) {
+    for (const item of reservedItems) {
+      await Product.findByIdAndUpdate(item.productId, { $inc: { stock: item.quantity } });
+    }
+    await InventoryTransaction.deleteMany({ reference: order.orderNumber });
+    await Order.findByIdAndDelete(order._id);
+    throw error;
   }
 
-  return order.populate([
+  const populated = await order.populate([
     { path: 'customer', select: 'name email phone' },
     { path: 'items.product', select: 'name sku images' },
   ]);
+
+  // Notify the manager desk of the new shop purchase.
+  try {
+    const who = (populated.customer as any)?.name || 'A member';
+    const summary = orderItems.map((i) => `${i.quantity} × ${i.productName}`).join(', ');
+    await createNotification({
+      audience: 'manager',
+      kind: 'order_placed',
+      title: 'New shop order',
+      message: `${who} placed ${order.orderNumber} — ${summary} (₹${order.total}).`,
+      relatedId: order._id.toString(),
+    });
+  } catch (error) {
+    console.error('Failed to raise order notification:', error);
+  }
+
+  return populated;
 };
 
 export const getOrders = async (query: { customerId?: string; status?: string; page?: number; limit?: number }) => {
@@ -220,6 +250,9 @@ export const getOrderById = async (id: string) => {
 export const updateOrderStatus = async (id: string, status: string, updatedById: string) => {
   const order = await Order.findById(id);
   if (!order) throw new NotFoundError('Order not found');
+  if (order.paymentStatus !== 'paid' && status !== 'cancelled') {
+    throw new AppError('Order must be paid before it can be fulfilled', 409);
+  }
 
   const allowedTransitions: Record<string, string[]> = {
     pending: ['confirmed', 'cancelled'],
@@ -261,4 +294,32 @@ export const updateOrderStatus = async (id: string, status: string, updatedById:
   }
   await order.save();
   return order;
+};
+
+export const cancelPendingOrder = async (id: string, customerId: string): Promise<void> => {
+  const order = await Order.findOne({ _id: id, customer: customerId });
+  if (!order) throw new NotFoundError('Shop order not found');
+  if (order.paymentStatus === 'paid') throw new ConflictError('A paid shop order cannot be cancelled as unpaid');
+  if (order.status === 'cancelled') return;
+  if (order.status !== 'pending') throw new ConflictError('Shop order is no longer awaiting payment');
+
+  for (const item of order.items) {
+    const product = await Product.findByIdAndUpdate(item.product, { $inc: { stock: item.quantity } }, { new: true });
+    if (product) {
+      await InventoryTransaction.create({
+        product: item.product,
+        type: 'return',
+        quantity: item.quantity,
+        previousStock: product.stock - item.quantity,
+        newStock: product.stock,
+        reference: order.orderNumber,
+        notes: 'Unpaid checkout cancelled',
+        performedBy: customerId,
+      });
+    }
+  }
+
+  order.status = 'cancelled';
+  order.paymentStatus = 'failed';
+  await order.save();
 };

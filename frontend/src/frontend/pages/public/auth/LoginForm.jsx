@@ -38,20 +38,6 @@ export default function LoginForm() {
     navigate(roleHome[res.account.role] || '/app/dashboard');
   };
 
-<<<<<<< HEAD
-  const demo = async (account) => {
-    setBusy(true);
-    const res = await login(account.email, account.password || 'clubbloom');
-    setBusy(false);
-    if (!res.ok) {
-      setErrors({ password: res.error });
-      return;
-    }
-    navigate(roleHome[res.account.role] || '/app/dashboard');
-  };
-
-=======
->>>>>>> origin/feature/frontendshaivya
   return (
     <form onSubmit={submit} noValidate>
       {/* Email input */}

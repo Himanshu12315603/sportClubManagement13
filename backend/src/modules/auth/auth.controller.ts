@@ -79,8 +79,8 @@ export const changePassword = asyncHandler(async (req: Request, res: Response, _
   // Log password change activity
   await logActivity({
     userId: req.user!._id.toString(),
-    userName: req.user.name,
-    userEmail: req.user.email,
+    userName: req.user!.name,
+    userEmail: req.user!.email,
     type: 'password_changed',
     description: 'User changed their password',
   });
@@ -99,8 +99,8 @@ export const updateProfile = asyncHandler(async (req: Request, res: Response, _n
   // Log profile update activity
   await logActivity({
     userId: req.user!._id.toString(),
-    userName: req.user.name,
-    userEmail: req.user.email,
+    userName: req.user!.name,
+    userEmail: req.user!.email,
     type: 'profile_updated',
     description: 'User updated their profile',
     metadata: { fields: Object.keys({ name, phone, profileImage }).filter(k => req.body[k]) },

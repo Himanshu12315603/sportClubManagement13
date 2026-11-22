@@ -46,7 +46,7 @@ export default function ManagerBookings() {
   const today = toISODate(new Date());
 
   const nameById = useMemo(() => Object.fromEntries(members.map((m) => [m.id, m.name])), [members]);
-  const memberName = (b) => nameById[b.userId] || b.userId;
+  const memberName = (b) => b.memberName || nameById[b.userId] || b.userId;
 
   const rows = useMemo(() => {
     const needle = debounced.trim().toLowerCase();
@@ -307,6 +307,7 @@ export default function ManagerBookings() {
         onClose={() => setCancelId(null)}
         onConfirm={() => {
           cancelBooking(cancelId, cancelReason);
+          toast('Booking cancelled', `Reservation ${cancelId} was cancelled.`, 'info');
           setCancelId(null);
         }}
         title="Cancel Court Reservation?"

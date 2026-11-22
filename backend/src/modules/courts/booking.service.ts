@@ -1,10 +1,11 @@
 import mongoose from 'mongoose';
 import { Court, CourtDocument } from './court.model';
-import { Booking, BookingDocument } from './booking.model';
+import { Booking, BookingDocument, BookingStatus } from './booking.model';
 import { Member } from '../members/member.model';
 import { MembershipPlan } from '../members/membershipPlan.model';
 import { AppError, NotFoundError, ConflictError } from '../../utils/AppError';
 import { CreateBookingInput, CancelBookingInput } from './booking.validation';
+import { createNotification } from '../notifications/notification.service';
 
 // ---- Courts ----
 
@@ -116,15 +117,17 @@ export const createBooking = async (
 ): Promise<BookingDocument> => {
   const { courtId, memberUserId, startTime, bookingType, paymentMethod, participants, notes } = data;
 
-  // Validate court
+  // Validate court (accepts an ObjectId or a court code such as "TN-1")
   const court = mongoose.isValidObjectId(courtId)
     ? await Court.findById(courtId)
-    : (await Court.findOne({
+    : (await Court.findOne({ code: courtId })) ||
+      (await Court.findOne({
         $or: [
           { name: new RegExp(String(courtId).replace(/[-_]/g, ' '), 'i') },
           { type: String(courtId).toLowerCase().startsWith('ck') ? 'cricket' : 'tennis' },
         ],
-      })) || (await Court.findOne({ isActive: true }));
+      })) ||
+      (await Court.findOne({ isActive: true }));
 
   if (!court) throw new NotFoundError('Court not found');
   if (!court.isActive || court.status !== 'available') {
@@ -208,17 +211,36 @@ export const createBooking = async (
     bookingType,
     status: 'confirmed',
     price: Math.round(price * 100) / 100,
-    paymentStatus: paymentMethod ? 'pending' : 'pending',
+    paymentStatus: 'paid',
     paymentMethod,
     participants,
     notes,
   });
 
-  return booking.populate([
-    { path: 'court', select: 'name type' },
+  const populated = await booking.populate([
+    { path: 'court', select: 'name type code' },
     { path: 'bookedBy', select: 'name email' },
     { path: 'memberUserId', select: 'name email' },
   ]);
+
+  // Let the manager desk know a court has been booked.
+  try {
+    const who = (populated.memberUserId as any)?.name || (populated.bookedBy as any)?.name || 'A member';
+    const courtName = (populated.court as any)?.name || court.name;
+    const dateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(start);
+    const timeStr = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(start);
+    await createNotification({
+      audience: 'manager',
+      kind: 'booking_created',
+      title: 'New court booking',
+      message: `${who} booked ${courtName} on ${dateStr} at ${timeStr}.`,
+      relatedId: populated._id.toString(),
+    });
+  } catch (error) {
+    console.error('Failed to raise booking notification:', error);
+  }
+
+  return populated;
 };
 
 export const getBookings = async (query: {
@@ -245,7 +267,7 @@ export const getBookings = async (query: {
   const skip = (page - 1) * limit;
   const [bookings, total] = await Promise.all([
     Booking.find(filter)
-      .populate('court', 'name type')
+      .populate('court', 'name type code')
       .populate('bookedBy', 'name email')
       .populate('memberUserId', 'name email')
       .sort({ startTime: -1 })
@@ -259,7 +281,7 @@ export const getBookings = async (query: {
 
 export const getBookingById = async (id: string): Promise<BookingDocument> => {
   const booking = await Booking.findById(id)
-    .populate('court', 'name type memberPrice walkInPrice')
+    .populate('court', 'name type code memberPrice walkInPrice')
     .populate('bookedBy', 'name email phone')
     .populate('memberUserId', 'name email phone');
   if (!booking) throw new NotFoundError('Booking not found');
@@ -292,6 +314,12 @@ export const markBookingPaid = async (id: string, paymentMethod: string, payment
     { paymentStatus: 'paid', paymentMethod, paymentReference },
     { new: true }
   );
+  if (!booking) throw new NotFoundError('Booking not found');
+  return booking;
+};
+
+export const updateBookingStatus = async (id: string, status: BookingStatus): Promise<BookingDocument> => {
+  const booking = await Booking.findByIdAndUpdate(id, { status }, { new: true, runValidators: true });
   if (!booking) throw new NotFoundError('Booking not found');
   return booking;
 };

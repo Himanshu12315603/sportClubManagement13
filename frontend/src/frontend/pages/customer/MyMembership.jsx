@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
-import { paymentMethods, planById } from '../../data/membershipPlans';
+import { planById } from '../../data/membershipPlans';
 import { formatCurrency, formatDate } from '../../utils/format';
 import { planDurationDays } from '../../utils/membership';
 import {
@@ -14,10 +14,10 @@ import {
   ProgressBar,
   Tabs,
 } from '../../components/ui/primitives';
-import { Checkbox, Field, Select } from '../../components/ui/form';
 import DataTable from '../../components/ui/DataTable';
 import { Modal } from '../../components/ui/Modal';
 import Icon from '../../components/ui/Icon';
+import RazorpayModal from '../../components/ui/RazorpayModal';
 
 const DISCOUNT_TILES = [
   { key: 'courtDiscountPct', label: 'Court bookings', icon: 'CalendarDays' },
@@ -26,26 +26,41 @@ const DISCOUNT_TILES = [
 ];
 
 export default function MyMembership() {
-  const { membership, membershipStatus, gardenState, plans, payments, renewMembership } = useApp();
+  const {
+    membership, membershipStatus, gardenState, plans, payments,
+    subscribeMembership, completeMembershipPayment, toast,
+  } = useApp();
   const [tab, setTab] = useState('overview');
   const [renewFor, setRenewFor] = useState(null);
-  const [method, setMethod] = useState('upi');
-  const [autoRenew, setAutoRenew] = useState(false);
+  const [paymentPlan, setPaymentPlan] = useState(null);
+  const [saving, setSaving] = useState(false);
 
-  const current = planById(membership?.type);
+  const current = (plans || []).find((p) => p.id === membership?.type) || planById(membership?.type);
   const livePlans = plans?.length ? plans : (current ? [current] : []);
   const tone = gardenState.tone.replace('badge-', '');
   const dead = !gardenState.alive;
+  const active = Boolean(membership) && !dead;
 
   const openRenew = (plan) => {
+    if (!plan) return;
     setRenewFor(plan);
-    setMethod('upi');
-    setAutoRenew(false);
   };
 
-  const confirmRenew = () => {
-    const res = renewMembership({ planId: renewFor.id, method, autoRenew });
-    if (res.ok) setRenewFor(null);
+  const confirmRenew = async () => {
+    if (!renewFor) return;
+    if (renewFor.price > 0) {
+      setPaymentPlan(renewFor);
+      setRenewFor(null);
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await subscribeMembership(renewFor.id, 'free_trial');
+      if (res.ok) setRenewFor(null);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const columns = [
@@ -75,11 +90,21 @@ export default function MyMembership() {
         subtitle="Your plan, benefits, renewal options and complete payment history."
         badge={<Badge tone={tone}>{gardenState.statusLabel}</Badge>}
         actions={
-          <Button icon="RefreshCw" onClick={() => openRenew(current || livePlans[0])}>
-            Renew / Upgrade
+          <Button icon={active ? 'RefreshCw' : 'Crown'} onClick={() => openRenew(current || livePlans[0])}>
+            {active ? 'Renew your plan' : 'Choose a plan'}
           </Button>
         }
       />
+
+      {!membership ? (
+        <Card glass glow neon style={{ marginTop: 18 }}>
+          <CardTitle icon="Crown" title="You don't have a membership yet" hint="Join a plan to unlock courts, the shop and the cafeteria" />
+          <p className="small muted">
+            Pick one of the plans below to activate your membership. You can only hold one plan at a time — your plan
+            can be renewed, but you cannot switch to a different plan while it is active.
+          </p>
+        </Card>
+      ) : null}
 
       <Tabs
         value={tab}
@@ -164,15 +189,20 @@ export default function MyMembership() {
 
           <div className="cb-stack">
             <Card glass>
-              <CardTitle icon="Shuffle" title="Change or renew your plan" hint="Benefits and pricing are configurable by the club" />
+              <CardTitle
+                icon="Shuffle"
+                title={active ? 'Renew your plan' : 'Choose your plan'}
+                hint={active ? 'You hold one plan at a time — switching is locked until it expires' : 'Pick a plan to activate your membership'}
+              />
               <div className="cb-stack" style={{ gap: 14 }}>
                 {livePlans.map((p) => {
                   const isCurrent = p.id === membership?.type;
+                  const canSelect = isCurrent || !active;
                   return (
                     <div
                       key={p.id}
                       className="cb-card glass"
-                      style={{ padding: 16, borderColor: isCurrent ? p.accent : undefined }}
+                      style={{ padding: 16, borderColor: isCurrent ? p.accent : undefined, opacity: canSelect ? 1 : 0.6 }}
                     >
                       <div className="cb-row between wrap" style={{ gap: 12 }}>
                         <div>
@@ -196,11 +226,12 @@ export default function MyMembership() {
                       <Button
                         variant={isCurrent ? 'outline' : 'primary'}
                         size="sm"
-                        icon="RefreshCw"
+                        icon={isCurrent ? 'RefreshCw' : canSelect ? 'Crown' : 'Lock'}
                         style={{ marginTop: 14 }}
+                        disabled={!canSelect}
                         onClick={() => openRenew(p)}
                       >
-                        {isCurrent ? 'Renew this plan' : `Switch to ${p.name}`}
+                        {isCurrent ? 'Renew this plan' : canSelect ? `Join ${p.name}` : 'Locked while active'}
                       </Button>
                     </div>
                   );
@@ -238,8 +269,8 @@ export default function MyMembership() {
         footer={
           <>
             <Button variant="ghost" onClick={() => setRenewFor(null)}>Cancel</Button>
-            <Button icon="Check" onClick={confirmRenew}>
-              Pay {renewFor ? formatCurrency(renewFor.price) : ''}
+            <Button icon="Check" onClick={confirmRenew} disabled={saving}>
+              {saving ? 'Processing…' : `${active ? 'Pay' : 'Join'} ${renewFor ? formatCurrency(renewFor.price) : ''}`}
             </Button>
           </>
         }
@@ -260,25 +291,26 @@ export default function MyMembership() {
                 <span className="semibold">{formatCurrency(renewFor.price)}</span>
               </div>
             </div>
-            <Field label="Payment method">
-              <Select
-                value={method}
-                onChange={(e) => setMethod(e.target.value)}
-                options={paymentMethods.map((m) => ({ value: m.id, label: `${m.label} — ${m.hint}` }))}
-              />
-            </Field>
-            <Checkbox
-              checked={autoRenew}
-              onChange={setAutoRenew}
-              label="Enable auto-renew"
-              hint="Reminds you and renews automatically before expiry."
-            />
             <p className="tiny dim">
-              Renewing immediately restores garden health and replays the healthy growth animation.
+              Paid plans are activated only after Razorpay verifies the test payment. Free trials do not require payment.
             </p>
           </>
         ) : null}
       </Modal>
+      <RazorpayModal
+        open={Boolean(paymentPlan)}
+        onClose={() => setPaymentPlan(null)}
+        onCancel={() => setPaymentPlan(null)}
+        onError={(message) => toast('Membership checkout cancelled', message, 'error')}
+        amount={paymentPlan?.price || 0}
+        purpose="membership"
+        relatedId={paymentPlan?._id || paymentPlan?.id}
+        description={`${paymentPlan?.name || 'Membership'} plan`}
+        onSuccess={async () => {
+          await completeMembershipPayment();
+          setPaymentPlan(null);
+        }}
+      />
     </>
   );
 }

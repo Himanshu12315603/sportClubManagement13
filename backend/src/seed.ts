@@ -13,6 +13,12 @@ import { Employee } from './modules/employees/employee.model';
 import { Trial } from './modules/trials/trial.model';
 
 const seedData = async () => {
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || (process.env.NODE_ENV === 'development' ? 'Admin@12345' : '');
+  const managerPassword = process.env.SEED_MANAGER_PASSWORD || (process.env.NODE_ENV === 'development' ? 'Manager@12345' : '');
+  if (!adminPassword || !managerPassword) {
+    throw new Error('Set SEED_ADMIN_PASSWORD and SEED_MANAGER_PASSWORD before seeding in production.');
+  }
+
   await connectDB();
   console.log('🌱 Seeding initial club data...');
 
@@ -125,6 +131,7 @@ const seedData = async () => {
   const adminUser = await createOrGetUser({
     name: 'Admin Master',
     email: 'admin@championsclub.com',
+    password: adminPassword,
     role: 'super_admin',
     phone: '9876543200',
   });
@@ -132,6 +139,7 @@ const seedData = async () => {
   const managerUser = await createOrGetUser({
     name: 'Vikram Mehta (Manager)',
     email: 'manager@championsclub.com',
+    password: managerPassword,
     role: 'manager',
     phone: '9876543201',
   });
@@ -267,53 +275,43 @@ const seedData = async () => {
     console.log('🎾 Trial session booked for visitor Siddharth Roy');
   }
 
-  // 6. Courts
-  const existingCourts = await Court.countDocuments();
-  if (existingCourts === 0) {
-    await Court.create([
-      {
-        name: 'Centre Court (Tennis)',
-        type: 'tennis',
-        description: 'Synthetic grass championship tennis court with floodlights.',
-        status: 'available',
-        memberPrice: 400,
-        walkInPrice: 700,
-        facilities: ['Floodlights', 'Spectator Seating', 'Locker Room Access'],
-        isActive: true,
-      },
-      {
-        name: 'Court 2 (Clay Tennis)',
-        type: 'tennis',
-        description: 'Professional red clay tennis court.',
-        status: 'available',
-        memberPrice: 350,
-        walkInPrice: 600,
-        facilities: ['Clay Surface', 'Ball Boy Assistance'],
-        isActive: true,
-      },
-      {
-        name: 'Cricket Pitch A (Net Practice)',
-        type: 'cricket',
-        description: 'Astro-turf cricket practice nets with bowling machine support.',
-        status: 'available',
-        memberPrice: 500,
-        walkInPrice: 850,
-        facilities: ['Astro-Turf', 'Bowling Machine', 'Protective Netting'],
-        isActive: true,
-      },
-      {
-        name: 'Main Cricket Ground',
-        type: 'cricket',
-        description: 'Full-size cricket ground for 20-over matches and tournaments.',
-        status: 'available',
-        memberPrice: 2500,
-        walkInPrice: 4500,
-        facilities: ['Pavilion', 'Scoreboard', 'Umpire Room'],
-        isActive: true,
-      },
-    ]);
-    console.log('✅ Courts seeded');
+  // 6. Courts (full catalog matching the frontend booking grid)
+  // [code, name, type, memberPrice, walkInPrice]
+  const courtCatalog: Array<[string, string, string, number, number]> = [
+    ['TN-1', 'Centre Court', 'tennis', 550, 900],
+    ['TN-2', 'Tennis Court 2', 'tennis', 550, 900],
+    ['TN-3', 'Tennis Court 3 (Clay)', 'tennis', 550, 900],
+    ['TN-4', 'Tennis Court 4', 'tennis', 550, 900],
+    ['TN-5', 'Tennis Court 5', 'tennis', 550, 900],
+    ['TN-6', 'Tennis Court 6 (Clay)', 'tennis', 550, 900],
+    ['BD-1', 'Badminton Court A', 'badminton', 320, 500],
+    ['BD-2', 'Badminton Court B', 'badminton', 320, 500],
+    ['BD-3', 'Badminton Court C', 'badminton', 320, 500],
+    ['BD-4', 'Badminton Court D', 'badminton', 320, 500],
+    ['BD-5', 'Badminton Court E', 'badminton', 320, 500],
+    ['BD-6', 'Badminton Court F', 'badminton', 320, 500],
+    ['BD-7', 'Badminton Court G', 'badminton', 320, 500],
+    ['BD-8', 'Badminton Court H', 'badminton', 320, 500],
+    ['CK-1', 'Turf Lane 1', 'cricket', 800, 1200],
+    ['CK-2', 'Turf Lane 2', 'cricket', 800, 1200],
+    ['CK-3', 'Oval Practice', 'cricket', 800, 1200],
+    ['CK-4', 'Oval Practice B', 'cricket', 800, 1200],
+    ['PD-1', 'Padel Court 1', 'padel', 650, 1000],
+    ['PD-2', 'Padel Court 2', 'padel', 650, 1000],
+    ['PD-3', 'Padel Court 3', 'padel', 650, 1000],
+    ['PD-4', 'Padel Court 4', 'padel', 650, 1000],
+  ];
+
+  // Remove any legacy courts that predate the coded catalogue, then upsert each coded court.
+  await Court.deleteMany({ code: { $exists: false } });
+  for (const [code, name, type, memberPrice, walkInPrice] of courtCatalog) {
+    await Court.findOneAndUpdate(
+      { code },
+      { code, name, type, status: 'available', memberPrice, walkInPrice, isActive: true },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
   }
+  console.log(`✅ Courts seeded (${courtCatalog.length})`);
 
   // 7. Shop Categories & Products
   const existingCats = await Category.countDocuments();

@@ -1,6 +1,6 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
-export type PaymentGatewayStatus = 'created' | 'authorized' | 'captured' | 'failed' | 'refunded';
+export type PaymentGatewayStatus = 'created' | 'authorized' | 'processing' | 'captured' | 'failed' | 'refunded';
 
 export interface IPayment {
   paymentNumber: string;
@@ -15,6 +15,7 @@ export interface IPayment {
   gatewaySignature?: string;
   status: PaymentGatewayStatus;
   notes?: string;
+  expiresAt?: Date;
 }
 
 export interface PaymentDocument extends IPayment, Document {}
@@ -37,10 +38,11 @@ const paymentSchema = new Schema<PaymentDocument>(
     gatewaySignature: String,
     status: {
       type: String,
-      enum: ['created', 'authorized', 'captured', 'failed', 'refunded'],
+      enum: ['created', 'authorized', 'processing', 'captured', 'failed', 'refunded'],
       default: 'created',
     },
     notes: String,
+    expiresAt: Date,
   },
   { timestamps: true }
 );
@@ -48,6 +50,7 @@ const paymentSchema = new Schema<PaymentDocument>(
 paymentSchema.index({ user: 1, createdAt: -1 });
 paymentSchema.index({ gatewayOrderId: 1 });
 paymentSchema.index({ status: 1 });
+paymentSchema.index({ expiresAt: 1 });
 
 paymentSchema.pre('validate', async function () {
   if (!this.paymentNumber) {

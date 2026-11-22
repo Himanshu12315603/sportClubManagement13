@@ -1,6 +1,6 @@
 import mongoose, { Document } from 'mongoose';
 
-export type PaymentGatewayStatus = 'created' | 'authorized' | 'captured' | 'failed' | 'refunded';
+export type PaymentGatewayStatus = 'created' | 'authorized' | 'processing' | 'captured' | 'failed' | 'refunded';
 export type PaymentPurpose = 'membership' | 'booking' | 'shop_order' | 'cafeteria' | 'invoice';
 
 export interface IPayment {
@@ -21,16 +21,19 @@ export interface IPayment {
 export interface PaymentDocument extends IPayment, Document {}
 
 export interface CreatePaymentOrderInput {
-  amount: number;
-  currency?: string;
-  purpose: PaymentPurpose;
-  relatedId?: string;
-  notes?: string;
+  purpose: 'membership' | 'shop_order' | 'cafeteria';
+  relatedId: string;
 }
 
 export interface VerifyPaymentInput {
   paymentId: string;
   gatewayOrderId: string;
   gatewayPaymentId: string;
-  gatewaySignature?: string;
+  gatewaySignature: string;
+}
+
+export interface CancelPaymentInput {
+  paymentId?: string;
+  purpose?: 'shop_order' | 'cafeteria';
+  relatedId?: string;
 }

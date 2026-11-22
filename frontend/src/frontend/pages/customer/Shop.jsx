@@ -11,6 +11,7 @@ import CartPanel from '../../components/shop/CartPanel';
 import { Badge, Card, CardTitle, EmptyState, PageHeader, Tabs } from '../../components/ui/primitives';
 import { SearchInput } from '../../components/ui/form';
 import DataTable from '../../components/ui/DataTable';
+import RazorpayModal from '../../components/ui/RazorpayModal';
 
 const SHOP_STATUS_TONE = { packing: 'warning', ready: 'info', dispatched: 'info', delivered: 'active' };
 
@@ -20,8 +21,12 @@ const heroGen = genImage(
 );
 
 export default function Shop() {
-  const { productList, cart, cartTotals, addToCart, setCartQty, removeFromCart, placeShopOrder, shopOrders, membership } = useApp();
+  const {
+    productList, cart, cartTotals, addToCart, setCartQty, removeFromCart,
+    placeShopOrder, completePaidPurchase, shopOrders, membership, toast,
+  } = useApp();
   const [tab, setTab] = useState('browse');
+  const [checkoutOrder, setCheckoutOrder] = useState(null);
   const [category, setCategory] = useState('all');
   const [query, setQuery] = useState('');
   const debounced = useDebounced(query, 200);
@@ -29,6 +34,12 @@ export default function Shop() {
   const plan = planById(membership?.type);
   const memberPct = plan?.shopDiscountPct ?? 0;
   const { src: heroImage } = useImage(heroGen, fallbackLandscape('sports-shop'));
+
+  const prepareCheckout = async (payload) => {
+    const result = await placeShopOrder(payload);
+    if (result.ok) setCheckoutOrder(result.order);
+    return result;
+  };
 
   const filtered = useMemo(() => {
     const q = debounced.trim().toLowerCase();
@@ -140,7 +151,7 @@ export default function Shop() {
             totals={cart.channel === 'shop' ? cartTotals : { subtotal: 0, discount: 0, discountPct: 0, total: 0, count: 0 }}
             onQty={setCartQty}
             onRemove={removeFromCart}
-            onPlace={placeShopOrder}
+            onPlace={prepareCheckout}
             title="Your kit"
           />
         </div>
@@ -156,6 +167,20 @@ export default function Shop() {
           </Card>
         </div>
       )}
+      <RazorpayModal
+        open={Boolean(checkoutOrder)}
+        onClose={() => setCheckoutOrder(null)}
+        onCancel={() => setCheckoutOrder(null)}
+        onError={(message) => toast('Checkout cancelled', message, 'error')}
+        amount={checkoutOrder?.total || 0}
+        purpose="shop_order"
+        relatedId={checkoutOrder?._id}
+        description={`Shop order ${checkoutOrder?.orderNumber || ''}`}
+        onSuccess={async (result) => {
+          await completePaidPurchase('shop', result.purchase);
+          setCheckoutOrder(null);
+        }}
+      />
     </>
   );
 }
